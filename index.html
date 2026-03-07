@@ -1,0 +1,2964 @@
+<!DOCTYPE html>
+<html lang="es">
+  
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Lumen">
+  <meta name="theme-color" content="#2563eb">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <title>Lumen</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Lato:wght@300;400;700&family=Lexend:wght@300;400;500;600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet">
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --paper: #faf8f4;
+      --ink: #1a1714;
+      --ink-light: #6b6560;
+      --ink-faint: #b0a898;
+      --line: #e0d8cc;
+      --radius: 14px;
+      --shadow: 0 2px 16px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.05);
+      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+      --blue: #2563eb;
+      --blue-bg: #eff6ff;
+      --green: #16a34a;
+      --green-bg: #f0fdf4;
+      --orange: #ea580c;
+      --orange-bg: #fff7ed;
+      --violet: #7c3aed;
+      --violet-bg: #f5f3ff;
+      --mod: var(--blue);
+      --mod-bg: var(--blue-bg);
+      /* Splash notebook palette */
+      --splash-bg1: #e8f4fb;
+      --splash-bg2: #d0e8f5;
+      --splash-line: rgba(180, 215, 240, 0.55);
+      /* Variables de Iluminación Dinámica (0.0 a 1.0) */
+      --mx: 0.5;
+      --my: 0.5;
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      font-family: 'Lato', sans-serif;
+      background: #020408;
+      color: var(--ink);
+      overflow: hidden;
+    }
+
+    /* ── WORD CANVAS ── */
+    #wc {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* ── SCREENS ── */
+    .screen {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      background: transparent;
+      overflow-y: auto;
+      /* Estado visible — sin transform */
+      opacity: 1;
+      transform: scale(1) translateY(0);
+      filter: blur(0);
+      pointer-events: auto;
+      transition:
+        opacity  0.38s cubic-bezier(0.4, 0, 0.2, 1),
+        transform 0.38s cubic-bezier(0.4, 0, 0.2, 1),
+        filter   0.38s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Pantalla que SALE hacia atrás (se queda debajo) */
+    .screen.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.93) translateY(8px);
+      filter: blur(4px);
+    }
+
+    /* Pantalla que ENTRA desde delante — clase temporal aplicada por JS */
+    .screen.entering {
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(1.04) translateY(-12px);
+      filter: blur(3px);
+      transition: none; /* sin transición en el frame inicial */
+    }
+
+    /* ── BUBBLE ── */
+    .bubble-wrap {
+      position: relative;
+      display: inline-block;
+    }
+
+    .bubble {
+      position: absolute;
+      bottom: calc(100% + 10px);
+      left: 50%;
+      transform: translateX(-50%) translateY(4px);
+      background: var(--ink);
+      color: var(--paper);
+      padding: 6px 12px;
+      border-radius: 10px;
+      font-size: 0.78rem;
+      font-style: italic;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 200;
+    }
+
+    .bubble::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent;
+      border-top-color: var(--ink);
+    }
+
+    .bubble.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .pen-sm-wrap .bubble {
+      bottom: auto;
+      top: calc(100% + 10px);
+    }
+
+    .pen-sm-wrap .bubble::after {
+      top: auto;
+      bottom: 100%;
+      border-top-color: transparent;
+      border-bottom-color: var(--ink);
+    }
+
+    /* ── PEN ── */
+    .pen {
+      display: inline-block;
+      cursor: pointer;
+      filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.18));
+    }
+
+    .pen:active {
+      transform: scale(0.93) rotate(-5deg);
+    }
+
+    .pen svg {
+      display: block;
+    }
+
+    /* .pen-lg svg size is set per-instance via inline style */
+
+    .pen-sm svg {
+      width: 40px;
+      height: 40px;
+    }
+
+    /* ══ METALLIC TEXT ══ */
+    .metallic-text {
+      font-family: 'Cinzel', Georgia, serif;
+      background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #172554 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 2px 4px rgba(59, 130, 246, 0.2));
+    }
+
+    /* ── Float animation ── */
+    @keyframes float {
+      0%   { transform: translateY(0) rotate(-3deg); }
+      25%  { transform: translateY(-18px) rotate(-1deg); }
+      50%  { transform: translateY(-26px) rotate(1.8deg); }
+      75%  { transform: translateY(-12px) rotate(0.5deg); }
+      100% { transform: translateY(0) rotate(-3deg); }
+    }
+
+    @keyframes quill-shimmer {
+      0%   { transform: translateX(-400px) skewX(-20deg); opacity: 0; }
+      5%   { opacity: 1; }
+      38%  { opacity: 0.7; }
+      42%  { opacity: 0; transform: translateX(500px) skewX(-20deg); }
+      100% { opacity: 0; transform: translateX(500px) skewX(-20deg); }
+    }
+
+    .quill-shimmer-bar {
+      animation: quill-shimmer 5s ease-in-out infinite;
+      animation-delay: 2s;
+    }
+
+    .float-anim {
+      animation: float 6s ease-in-out infinite;
+    }
+
+    /* ══════════════════════════════
+   SPLASH
+══════════════════════════════ */
+    #splash {
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem;
+      /* Overlay oscuro sobre el canvas wgpu — opacidad alta para evitar "dos pantallas" */
+      background: linear-gradient(160deg, rgba(5,10,28,0.91) 0%, rgba(3,7,22,0.94) 100%);
+      /* SIN position:relative ni backdrop-filter — hereda position:fixed de .screen */
+    }
+
+    /* Moon icon top-right */
+    .splash-moon {
+      position: absolute;
+      top: 1.4rem;
+      right: 1.4rem;
+      font-size: 1.3rem;
+      color: rgba(180, 215, 255, 0.7);
+      cursor: pointer;
+      opacity: 0.85;
+      transition: opacity 0.2s, filter 0.2s;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      filter: drop-shadow(0 0 6px rgba(147, 197, 253, 0.5));
+    }
+
+    .splash-moon:hover {
+      opacity: 1;
+      filter: drop-shadow(0 0 10px rgba(147, 197, 253, 0.85));
+    }
+
+    .splash-logo {
+      /* Oculto — la pluma escribe LUMEN en el canvas */
+      display: none;
+    }
+
+    /* Subtítulo y dots se ocultan mientras la pluma escribe */
+    #splash.writing .splash-sub,
+    #splash.writing .splash-phrase {
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .splash-sub {
+      font-family: 'Lato', sans-serif;
+      font-style: normal;
+      color: rgba(180, 210, 240, 0.75);
+      font-size: 0.72rem;
+      margin-top: 0.6rem;
+      letter-spacing: 0.4em;
+      text-transform: uppercase;
+      animation: fadeUp 0.6s 0.6s ease both;
+    }
+
+    .splash-phrase {
+      font-style: italic;
+      color: rgba(180, 205, 230, 0.70);
+      font-size: 0.9rem;
+      margin-top: 2.5rem;
+      min-height: 1.4rem;
+      animation: fadeUp 0.5s 1s ease both;
+      transition: opacity 0.3s;
+    }
+
+    .dots span {
+      display: inline-block;
+      animation: dot 1.2s ease infinite;
+    }
+
+    .dots span:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .dots span:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes dot {
+
+      0%,
+      80%,
+      100% {
+        opacity: 0.2;
+        transform: scale(0.7);
+      }
+
+      40% {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    /* ══════════════════════════════
+   HOME
+══════════════════════════════ */
+    #home {
+      padding: 0;
+      overflow-y: auto;
+    }
+
+    .home-head {
+      padding: 2.8rem 1.5rem 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .home-logo {
+      font-family: 'Cinzel', Georgia, serif;
+      font-size: clamp(2.5rem, 10vw, 4rem);
+      font-weight: 700;
+      letter-spacing: 0.12em;
+    }
+
+    .home-tag {
+      font-family: 'Lato', sans-serif;
+      font-style: normal;
+      color: #4a6fa5;
+      font-size: 0.72rem;
+      margin-top: 0.45rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+    }
+
+    /* Cards */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      padding: 1rem 1.1rem;
+      max-width: 560px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.92);
+      border-radius: 1rem;
+      padding: 1.2rem;
+      cursor: pointer;
+      height: 9rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.03);
+      border: 2px solid var(--c);
+      transition: transform 0.18s, box-shadow 0.18s;
+      -webkit-tap-highlight-color: transparent;
+      backdrop-filter: blur(8px);
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .card:active {
+      transform: scale(0.97);
+    }
+
+    .card[data-m="simplificar"] {
+      --c: #0ea5e9;
+    }
+
+    .card[data-m="burocracia"] {
+      --c: #ef4444;
+    }
+
+    .card[data-m="apuntes"] {
+      --c: #22c55e;
+    }
+
+    .card[data-m="revision"] {
+      --c: #a855f7;
+    }
+
+    .card-icon {
+      width: 2.4rem;
+      height: 2.4rem;
+      border-radius: 0.6rem;
+      background: color-mix(in srgb, var(--c) 13%, transparent);
+      color: var(--c);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card-icon .material-symbols-outlined {
+      font-size: 1.4rem;
+    }
+
+    .card-name {
+      font-family: 'Cinzel', Georgia, serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: 0.05em;
+    }
+
+    .card-desc {
+      font-family: 'Lato', sans-serif;
+      font-size: 0.7rem;
+      color: var(--ink-light);
+      margin-top: 0.2rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    /* Bottom feathers */
+    .feathers-wrapper {
+      position: relative;
+      height: 160px;
+      width: 100%;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      pointer-events: none;
+      margin-top: auto;
+    }
+
+    .feather-float {
+      position: absolute;
+      bottom: 0;
+      filter: drop-shadow(4px 8px 12px rgba(0, 0, 0, 0.2));
+    }
+
+    /* ══════════════════════════════
+   MODULE SCREEN
+══════════════════════════════ */
+    #mod {
+      padding-bottom: 3rem;
+      transition: background-color 0.3s;
+      -webkit-backdrop-filter: blur(15px);
+      backdrop-filter: blur(15px);
+    }
+
+    #mod[data-mod="simplificar"] {
+      background-color: rgba(248, 250, 252, 0.85);
+    }
+
+    #mod[data-mod="burocracia"] {
+      background-color: rgba(248, 250, 251, 0.85);
+    }
+
+    #mod[data-mod="apuntes"] {
+      background-color: rgba(253, 248, 248, 0.85);
+    }
+
+    #mod[data-mod="revision"] {
+      background-color: rgba(237, 233, 254, 0.85);
+    }
+
+    .mod-head {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 1rem 1rem 0.8rem;
+      position: sticky;
+      top: 0;
+      background: rgba(238, 247, 253, 0.80);
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(186, 230, 253, 0.4);
+      z-index: 50;
+    }
+
+    #mod[data-mod="apuntes"] .mod-head {
+      background: rgba(253, 248, 248, 0.80);
+      border-bottom-color: rgba(252, 165, 165, 0.3);
+    }
+
+    #mod[data-mod="revision"] .mod-head {
+      background: rgba(237, 233, 254, 0.80);
+      border-bottom-color: rgba(196, 181, 253, 0.3);
+    }
+
+    .btn-back {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--ink-light);
+      padding: 6px;
+      border-radius: 8px;
+      display: flex;
+      transition: color 0.15s, background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+      flex-shrink: 0;
+      font-size: 1.3rem;
+      line-height: 1;
+    }
+
+    .btn-back:hover {
+      color: var(--ink);
+      background: var(--line);
+    }
+
+    .mod-title-wrap {
+      flex: 1;
+    }
+
+    .mod-title {
+      font-size: 1.2rem;
+      font-weight: normal;
+      color: var(--ink);
+    }
+
+    .mod-sub {
+      font-size: 0.72rem;
+      color: var(--ink-faint);
+      font-style: italic;
+    }
+
+    .pen-sm-wrap {
+      position: relative;
+    }
+
+    .mod-body {
+      padding: 1.1rem;
+      max-width: 640px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      background: transparent;
+      gap: 0.5rem;
+      margin-bottom: 1.1rem;
+    }
+
+    .tab {
+      flex: 1;
+      background: white;
+      border: 1.5px solid #e2e8f0;
+      cursor: pointer;
+      padding: 0.65rem 0.2rem;
+      border-radius: 999px;
+      font-family: 'Lexend', sans-serif;
+      font-size: 0.6rem;
+      color: var(--ink-light);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.18s;
+      -webkit-tap-highlight-color: transparent;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .tab .material-symbols-outlined {
+      font-size: 1.3rem;
+      line-height: 1;
+    }
+
+    .tab.on {
+      background: var(--mod);
+      color: white;
+      border-color: var(--mod);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .tab:hover:not(.on) {
+      border-color: var(--mod);
+      color: var(--ink);
+    }
+
+    /* Per-module tab shapes */
+    #mod[data-mod="revision"] .tab {
+      border-radius: 0.75rem;
+    }
+
+    /* Per-module tab icons */
+    .tab-icon-buro,
+    .tab-icon-other {
+      display: none;
+    }
+
+    .tab-text-other {
+      display: none;
+    }
+
+    #mod[data-mod="burocracia"] .tab-icon-default {
+      display: none;
+    }
+
+    #mod[data-mod="burocracia"] .tab-icon-buro {
+      display: inline;
+    }
+
+    #mod[data-mod="apuntes"] .tab-icon-default {
+      display: none;
+    }
+
+    #mod[data-mod="apuntes"] .tab-icon-other {
+      display: inline;
+    }
+
+    #mod[data-mod="revision"] .tab-icon-default {
+      display: none;
+    }
+
+    #mod[data-mod="revision"] .tab-icon-other {
+      display: inline;
+    }
+
+    #mod[data-mod="burocracia"] .tab-text-default {
+      display: none;
+    }
+
+    #mod[data-mod="burocracia"] .tab-text-other {
+      display: inline;
+    }
+
+    #mod[data-mod="apuntes"] .tab-text-default {
+      display: none;
+    }
+
+    #mod[data-mod="apuntes"] .tab-text-other {
+      display: inline;
+    }
+
+    #mod[data-mod="revision"] .tab-text-default {
+      display: none;
+    }
+
+    #mod[data-mod="revision"] .tab-text-other {
+      display: inline;
+    }
+
+    /* ── Panels ── */
+    .panel {
+      display: none;
+    }
+
+    .panel.on {
+      display: block;
+    }
+
+    .drop {
+      border: 2px dashed var(--line);
+      border-radius: var(--radius);
+      padding: 2.2rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      background: white;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .drop:hover,
+    .drop.over {
+      border-color: var(--mod);
+      background: var(--mod-bg);
+    }
+
+    .drop input {
+      display: none;
+    }
+
+    .drop-icon {
+      font-size: 2rem;
+      opacity: 0.35;
+      margin-bottom: 0.4rem;
+    }
+
+    .drop p {
+      font-size: 0.82rem;
+      color: var(--ink-light);
+      font-style: italic;
+    }
+
+    .drop small {
+      font-size: 0.72rem;
+      color: var(--ink-faint);
+    }
+
+    /* ── Text panel chrome ── */
+    .buro-chrome {
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+      background: #f8fafb;
+      border: 1.5px solid #e2e8f0;
+      border-radius: var(--radius) var(--radius) 0 0;
+      padding: 0.5rem 0.8rem;
+      border-bottom: none;
+    }
+
+    #mod[data-mod="burocracia"] .buro-chrome {
+      display: flex;
+    }
+
+    .buro-chrome-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10b981;
+    }
+
+    .buro-chrome-label {
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #10b981;
+    }
+
+    .buro-chrome-date {
+      margin-left: auto;
+      font-size: 0.72rem;
+      color: var(--ink-faint);
+    }
+
+    .rev-chrome {
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+      background: #f8f5ff;
+      border: 1.5px solid #e9d5ff;
+      border-radius: var(--radius) var(--radius) 0 0;
+      padding: 0.5rem 0.8rem;
+      border-bottom: none;
+    }
+
+    #mod[data-mod="revision"] .rev-chrome {
+      display: flex;
+    }
+
+    .mac-dots {
+      display: flex;
+      gap: 5px;
+    }
+
+    .mac-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .mac-dot.red {
+      background: #fc6b68;
+    }
+
+    .mac-dot.amber {
+      background: #fdbd41;
+    }
+
+    .mac-dot.green {
+      background: #33ca50;
+    }
+
+    .rev-mode-label {
+      margin-left: auto;
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #a78bfa;
+    }
+
+    /* ── Textarea wrapper ── */
+    .ta-wrap {
+      position: relative;
+    }
+
+    .buro-chrome+.ta-wrap textarea.lta,
+    .rev-chrome+.ta-wrap textarea.lta {
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+      border-top: none;
+    }
+
+    textarea.lta {
+      width: 100%;
+      border: 1.5px solid var(--line);
+      border-radius: var(--radius);
+      padding: 0.9rem;
+      font-family: 'Lato', sans-serif;
+      font-size: 0.95rem;
+      color: var(--ink);
+      background: white;
+      resize: vertical;
+      min-height: 160px;
+      outline: none;
+      line-height: 1.7;
+      transition: border-color 0.2s;
+    }
+
+    textarea.lta:focus {
+      border-color: var(--mod);
+    }
+
+    /* Per-module notebook lines */
+    #mod[data-mod="simplificar"] textarea.lta {
+      background-image: repeating-linear-gradient(transparent, transparent 31px, #bfdbfe 31px, #bfdbfe 32px);
+      background-attachment: local;
+      line-height: 32px;
+      padding-top: 8px;
+      min-height: 200px;
+    }
+
+    #mod[data-mod="burocracia"] .ta-wrap::before {
+      content: '';
+      position: absolute;
+      left: 38px;
+      top: 0;
+      bottom: 0;
+      width: 1.5px;
+      background: rgba(252, 165, 165, 0.65);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    #mod[data-mod="burocracia"] textarea.lta {
+      background-image: repeating-linear-gradient(transparent, transparent 31px, #e2e8f0 31px, #e2e8f0 32px);
+      background-attachment: local;
+      line-height: 32px;
+      padding-top: 8px;
+      padding-left: 2.8rem;
+      min-height: 200px;
+    }
+
+    #mod[data-mod="apuntes"] textarea.lta {
+      background-image: repeating-linear-gradient(transparent, transparent 31px, #ffcccb 31px, #ffcccb 32px);
+      background-attachment: local;
+      line-height: 32px;
+      padding-top: 8px;
+      min-height: 200px;
+    }
+
+    #mod[data-mod="revision"] textarea.lta {
+      background: white;
+      border-color: #e9d5ff;
+      min-height: 200px;
+    }
+
+    #mod[data-mod="revision"] textarea.lta:focus {
+      border-color: #a78bfa;
+    }
+
+    /* Paste button (Revisión) */
+    .rev-paste-btn {
+      display: none;
+      position: absolute;
+      bottom: 0.7rem;
+      right: 0.7rem;
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 50%;
+      background: white;
+      border: 1px solid #e9d5ff;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      cursor: pointer;
+      color: #a78bfa;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .rev-paste-btn .material-symbols-outlined {
+      font-size: 1.2rem;
+    }
+
+    .rev-paste-btn:hover {
+      color: #7c3aed;
+    }
+
+    #mod[data-mod="revision"] .rev-paste-btn {
+      display: flex;
+    }
+
+    /* Status bar (Simplificar) */
+    .simp-status {
+      display: none;
+      align-items: center;
+      gap: 0.4rem;
+      margin-top: 0.5rem;
+      font-family: 'Lexend', sans-serif;
+      font-size: 0.75rem;
+      color: var(--ink-light);
+    }
+
+    .simp-status .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+      animation: statusPulse 2s ease infinite;
+    }
+
+    @keyframes statusPulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.4;
+      }
+    }
+
+    #mod[data-mod="simplificar"] .simp-status {
+      display: flex;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: var(--mod-bg);
+      border: 1px solid color-mix(in srgb, var(--mod) 30%, transparent);
+      color: var(--mod);
+      border-radius: 20px;
+      padding: 0.3rem 0.7rem;
+      font-size: 0.78rem;
+      margin-top: 0.6rem;
+    }
+
+    .chip button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--mod);
+      display: flex;
+      padding: 0;
+      font-size: 1rem;
+      line-height: 1;
+    }
+
+    /* Audio */
+    .audio-box {
+      background: white;
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+
+    .rec-btn {
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      border: none;
+      background: var(--mod);
+      color: white;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+      box-shadow:
+        0 4px 18px color-mix(in srgb, var(--mod) 45%, transparent),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      margin-bottom: 0.6rem;
+    }
+
+    .rec-btn:hover {
+      transform: scale(1.08);
+      box-shadow:
+        0 8px 28px color-mix(in srgb, var(--mod) 55%, transparent),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    }
+
+    .rec-btn.on {
+      background: #dc2626;
+      animation: pulse 1.2s ease infinite;
+      box-shadow: 0 4px 18px rgba(220, 38, 38, 0.4);
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.07);
+      }
+    }
+
+    .rec-lbl {
+      font-size: 0.8rem;
+      color: var(--ink-light);
+      font-style: italic;
+    }
+
+    .rec-timer {
+      font-size: 1.2rem;
+      color: var(--ink);
+      margin: 0.3rem 0;
+      display: none;
+    }
+
+    .audio-prev {
+      margin-top: 0.9rem;
+      display: none;
+    }
+
+    .audio-prev audio {
+      width: 100%;
+    }
+
+    .audio-file-drop {
+      margin-top: 0.9rem;
+    }
+
+    .audio-file-drop .drop {
+      padding: 1.2rem;
+    }
+
+    /* Extras */
+    .field-lbl {
+      font-size: 0.72rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--ink-light);
+      margin-bottom: 0.35rem;
+      display: block;
+    }
+
+    .ctx-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.45rem;
+      margin-bottom: 1rem;
+    }
+
+    .ctx-btn {
+      border: 1.5px solid var(--line);
+      background: white;
+      border-radius: 10px;
+      padding: 0.55rem 0.4rem;
+      cursor: pointer;
+      font-family: 'Lato', sans-serif;
+      font-size: 0.8rem;
+      color: var(--ink-light);
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      justify-content: center;
+      transition: all 0.18s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .ctx-btn.on {
+      border-color: var(--mod);
+      background: var(--mod-bg);
+      color: var(--mod);
+    }
+
+    /* Submit */
+    .btn-go {
+      width: 100%;
+      background: var(--mod);
+      color: white;
+      border: none;
+      border-radius: 999px;
+      padding: 0.95rem;
+      font-family: 'Lexend', sans-serif;
+      font-size: 1rem;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 1.1rem;
+      position: relative;
+      overflow: hidden;
+      /* Sombra en reposo más pronunciada */
+      box-shadow:
+        0 4px 12px color-mix(in srgb, var(--mod) 45%, transparent),
+        0 1px 3px  color-mix(in srgb, var(--mod) 30%, transparent),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+                  box-shadow 0.2s ease,
+                  opacity 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Capa de luz — simula curvatura en la mitad superior */
+    .btn-go::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.22) 0%,
+        rgba(255, 255, 255, 0.05) 50%,
+        transparent 100%
+      );
+      pointer-events: none;
+    }
+
+    /* Destello de clic */
+    .btn-go::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: radial-gradient(circle at center, rgba(255,255,255,0.25) 0%, transparent 70%);
+      opacity: 0;
+      transition: opacity 0.4s;
+      pointer-events: none;
+    }
+
+    .btn-go:active::after {
+      opacity: 1;
+      transition: opacity 0s;
+    }
+
+    .btn-go:hover:not(:disabled) {
+      transform: translateY(-3px) scale(1.015);
+      box-shadow:
+        0 10px 28px color-mix(in srgb, var(--mod) 55%, transparent),
+        0 4px 10px  color-mix(in srgb, var(--mod) 35%, transparent),
+        inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    }
+
+    .btn-go:active:not(:disabled) {
+      transform: translateY(1px) scale(0.985);
+      box-shadow:
+        0 2px 8px color-mix(in srgb, var(--mod) 40%, transparent),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+      transition: transform 0.08s, box-shadow 0.08s;
+    }
+
+    .btn-go:disabled {
+      opacity: 0.52;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Error */
+    .err {
+      background: #fef2f2;
+      border: 1.5px solid #fca5a5;
+      border-radius: var(--radius);
+      padding: 0.9rem 1.1rem;
+      color: #991b1b;
+      font-size: 0.85rem;
+      display: none;
+      margin-top: 0.9rem;
+    }
+
+    .err.on {
+      display: block;
+    }
+
+    /* Loading */
+    .loading {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2.5rem 1rem;
+      text-align: center;
+    }
+
+    .loading.on {
+      display: flex;
+    }
+
+    .ld-pen {
+      animation: bob 0.65s ease infinite alternate;
+    }
+
+    @keyframes bob {
+      from {
+        transform: translateY(0) rotate(-4deg);
+      }
+
+      to {
+        transform: translateY(-14px) rotate(4deg);
+      }
+    }
+
+    .ld-phrase {
+      font-style: italic;
+      font-size: 0.95rem;
+      color: var(--ink-light);
+      margin-top: 1.2rem;
+      min-height: 1.4rem;
+      transition: opacity 0.35s;
+    }
+
+    .ld-dots {
+      display: flex;
+      gap: 5px;
+      margin-top: 0.6rem;
+      justify-content: center;
+    }
+
+    .ld-dots span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--mod);
+      animation: dot 1.2s ease infinite;
+    }
+
+    .ld-dots span:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .ld-dots span:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    /* Results */
+    .results {
+      display: none;
+      margin-top: 1.3rem;
+    }
+
+    .results.on {
+      display: block;
+      animation: fadeUp 0.4s ease;
+    }
+
+    .res-card {
+      background: white;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      margin-bottom: 0.9rem;
+    }
+
+    .res-head {
+      padding: 0.8rem 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .res-label {
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-light);
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .res-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--mod);
+    }
+
+    .res-body {
+      padding: 1.1rem;
+      font-size: 0.92rem;
+      line-height: 1.75;
+      color: var(--ink);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .btn-copy {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--ink-faint);
+      padding: 4px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      display: flex;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    .btn-copy:hover {
+      color: var(--ink);
+      background: var(--line);
+    }
+
+    /* Simplificar version toggle */
+    .vtoggle {
+      display: flex;
+      background: var(--line);
+      border-radius: 10px;
+      padding: 3px;
+      gap: 2px;
+      margin-bottom: 0.9rem;
+    }
+
+    .vbtn {
+      flex: 1;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 8px;
+      font-family: 'Lato', sans-serif;
+      font-size: 0.85rem;
+      color: var(--ink-light);
+      transition: all 0.18s;
+    }
+
+    .vbtn.on {
+      background: white;
+      color: var(--mod);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Burocracia 3 cols */
+    .buro-cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1px;
+      background: var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 0.9rem;
+    }
+
+    @media (max-width: 420px) {
+      .buro-cols {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .bcol {
+      background: white;
+      padding: 0.9rem;
+    }
+
+    .bcol-t {
+      font-size: 0.72rem;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--mod);
+      margin-bottom: 0.5rem;
+    }
+
+    .bcol-b {
+      font-size: 0.82rem;
+      line-height: 1.65;
+      color: var(--ink);
+      white-space: pre-wrap;
+    }
+
+    .rd-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.7rem;
+      margin-bottom: 0.9rem;
+    }
+
+    @media (max-width: 380px) {
+      .rd-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .rd-card {
+      background: white;
+      border-radius: var(--radius);
+      padding: 0.9rem;
+      box-shadow: var(--shadow);
+    }
+
+    .rd-card.r {
+      border-top: 3px solid var(--green);
+    }
+
+    .rd-card.d {
+      border-top: 3px solid var(--orange);
+    }
+
+    .rd-t {
+      font-size: 0.72rem;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      margin-bottom: 0.45rem;
+    }
+
+    .rd-card.r .rd-t {
+      color: var(--green);
+    }
+
+    .rd-card.d .rd-t {
+      color: var(--orange);
+    }
+
+    .rd-b {
+      font-size: 0.8rem;
+      line-height: 1.6;
+      color: var(--ink);
+      white-space: pre-wrap;
+    }
+
+    /* Save */
+    .btn-save {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: none;
+      border: 1.5px solid var(--line);
+      border-radius: 10px;
+      padding: 0.5rem 0.9rem;
+      font-family: 'Lato', sans-serif;
+      font-size: 0.8rem;
+      color: var(--ink-light);
+      cursor: pointer;
+      transition: all 0.18s;
+      margin: 0.5rem auto 0;
+      width: fit-content;
+    }
+
+    .btn-save:hover {
+      border-color: var(--mod);
+      color: var(--mod);
+    }
+
+    /* ══════════════════════════════
+   HOME v2 – new card design
+══════════════════════════════ */
+    #home {
+      padding: 0;
+      overflow: visible;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .home-head-v2 {
+      padding: 3rem 1.5rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .home-logo-v2 {
+      font-family: 'Cinzel', Georgia, serif;
+      font-size: clamp(2.4rem, 11vw, 4rem);
+      font-weight: 800;
+      letter-spacing: 0.15em;
+      /* Gradiente y animación shimmer definidos en el bloque @keyframes al final */
+    }
+
+    .home-tag-v2 {
+      font-family: 'Lato', sans-serif;
+      color: #64748b;
+      font-size: 0.72rem;
+      margin-top: 0.4rem;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+    }
+
+    .home-grid-v2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2rem;
+      padding: 0.5rem 1.3rem 1rem;
+      max-width: 480px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .module-card {
+      position: relative;
+      padding: 1.1rem;
+      border-radius: 1.1rem;
+      cursor: pointer;
+      height: 9.2rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: flex-start;
+      background: rgba(255, 255, 255, 0.70);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+      /* Sombra base — el tilt la ajusta por JS */
+      box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.18), 0 4px 8px -2px rgba(0, 0, 0, 0.08);
+      /* Transition suave para el retorno al reposo */
+      transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1),
+                  box-shadow 0.35s cubic-bezier(0.23, 1, 0.32, 1);
+      -webkit-tap-highlight-color: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.45);
+      text-align: left;
+      transform-style: preserve-3d;
+      /* Variables locales por card — las setea JS */
+      --cx: 50%; --cy: 50%;
+    }
+
+    .module-card:hover {
+      transition: transform 0.08s linear, box-shadow 0.08s linear;
+    }
+
+    /* Brillo especular — coordenadas locales de la card, no globales */
+    .module-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 1.1rem;
+      background: radial-gradient(circle at var(--cx) var(--cy),
+        rgba(255,255,255,0.75) 0%,
+        rgba(255,255,255,0.08) 45%,
+        transparent 75%);
+      opacity: 0;
+      transition: opacity 0.25s;
+      pointer-events: none;
+    }
+    .module-card:hover::after { opacity: 1; }
+
+    .module-card:active {
+      transform: scale(0.97);
+    }
+
+    .module-card[data-m="simplificar"] {
+      border-color: #0ea5e9;
+    }
+
+    .module-card[data-m="burocracia"] {
+      border-color: #22c55e;
+    }
+
+    .module-card[data-m="apuntes"] {
+      border-color: #ef4444;
+    }
+
+    .module-card[data-m="revision"] {
+      border-color: #a855f7;
+    }
+
+    .module-card[data-m="simplificar"]:hover {
+      box-shadow: 0 0 10px rgba(14, 165, 233, 0.45), 0 0 22px rgba(14, 165, 233, 0.25), 0 20px 25px -5px rgba(0, 0, 0, 0.08);
+    }
+
+    .module-card[data-m="burocracia"]:hover {
+      box-shadow: 0 0 10px rgba(34, 197, 94, 0.45), 0 0 22px rgba(34, 197, 94, 0.25), 0 20px 25px -5px rgba(0, 0, 0, 0.08);
+    }
+
+    .module-card[data-m="apuntes"]:hover {
+      box-shadow: 0 0 10px rgba(239, 68, 68, 0.45), 0 0 22px rgba(239, 68, 68, 0.25), 0 20px 25px -5px rgba(0, 0, 0, 0.08);
+    }
+
+    .module-card[data-m="revision"]:hover {
+      box-shadow: 0 0 10px rgba(168, 85, 247, 0.45), 0 0 22px rgba(168, 85, 247, 0.25), 0 20px 25px -5px rgba(0, 0, 0, 0.08);
+    }
+
+    .module-card-icon {
+      width: 2.4rem;
+      height: 2.4rem;
+      border-radius: 0.55rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      /* Iconografía 3D (Punto 3): Profundidad simulada */
+      position: relative;
+      overflow: hidden;
+      box-shadow: 
+        inset 3px 3px 6px rgba(255,255,255,0.9),
+        inset -3px -3px 6px rgba(0,0,0,0.15),
+        0 8px 15px rgba(0,0,0,0.15);
+      transform: translateZ(20px);
+    }
+
+    /* Reflejo de luz en el icono — coordenadas locales de la card */
+    .module-card-icon::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at var(--cx) var(--cy), rgba(255,255,255,0.8), transparent 60%);
+      opacity: 0.7;
+    }
+
+    .module-card[data-m="simplificar"] .module-card-icon {
+      background: #e0f2fe;
+      color: #0284c7;
+    }
+
+    .module-card[data-m="burocracia"] .module-card-icon {
+      background: #dcfce7;
+      color: #16a34a;
+    }
+
+    .module-card[data-m="apuntes"] .module-card-icon {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
+    .module-card[data-m="revision"] .module-card-icon {
+      background: #f3e8ff;
+      color: #9333ea;
+    }
+
+    .module-card-icon .material-symbols-outlined {
+      font-size: 1.4rem;
+    }
+
+    .module-card-name {
+      font-family: 'Cinzel', Georgia, serif;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #1e293b;
+    }
+
+    .module-card-desc {
+      font-family: 'Lato', sans-serif;
+      font-size: 0.7rem;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-top: 0.2rem;
+    }
+
+    /* Quills wrapper v2 */
+    .quills-wrapper-v2 {
+      position: relative;
+      height: 175px;
+      width: 100%;
+      overflow: visible;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      pointer-events: none;
+      margin-top: auto;
+      padding-bottom: 0;
+      z-index: 20;
+    }
+
+    .quill-float-v2 {
+      position: absolute;
+      bottom: 0;
+      filter: drop-shadow(5px 10px 15px rgba(0, 0, 0, 0.25));
+    }
+
+    /* Entrada premium — scale + blur + rise */
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(22px) scale(0.94);
+        filter: blur(6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+      }
+    }
+
+    /* Glow pulsante para el logo del splash */
+    @keyframes logoGlow {
+      0%, 100% { filter: drop-shadow(0 0 14px rgba(147, 197, 253, 0.45)); }
+      50%       { filter: drop-shadow(0 0 28px rgba(147, 197, 253, 0.85)) drop-shadow(0 0 50px rgba(99, 160, 255, 0.35)); }
+    }
+
+    .splash-logo {
+      animation: fadeUp 0.8s 0.3s cubic-bezier(0.22, 1, 0.36, 1) both,
+                 logoGlow 3.5s 1.2s ease-in-out infinite;
+    }
+
+    /* Shimmer continuo sobre el logo de home */
+    @keyframes homeLogoShimmer {
+      0%   { background-position: 200% center; }
+      100% { background-position: -200% center; }
+    }
+
+    .home-logo-v2 {
+      background: linear-gradient(
+        100deg,
+        #1e3a8a 0%,
+        #3b82f6 30%,
+        #93c5fd 45%,
+        #bfdbfe 50%,
+        #93c5fd 55%,
+        #3b82f6 70%,
+        #172554 100%
+      );
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 2px 8px rgba(59, 130, 246, 0.35));
+      animation: homeLogoShimmer 4s linear infinite;
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="lumen-canvas" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0;"></canvas>
+  <canvas id="wc"></canvas>
+
+  <!-- ══ SPLASH ══ -->
+  <div id="splash" class="screen">
+    <!-- Canvas donde la pluma escribe LUMEN -->
+    <canvas id="write-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:2;"></canvas>
+    <!-- Moon icon top-right -->
+    <span class="splash-moon">🌙</span>
+
+    <div style="margin:auto;text-align:center;padding:2rem;">
+      <!-- Diagonal glassmorphism feather -->
+      <div class="bubble-wrap" style="display:inline-block;">
+        <div class="bubble" id="sb"></div>
+        <div class="pen pen-lg float-anim" id="sp" onclick="penClick('sp','sb')" style="display:inline-block;filter:drop-shadow(0px 18px 35px rgba(14,165,233,0.40));">
+          <canvas id="quill_canvas" width="220" height="420" style="width:175px;height:335px;display:none;"></canvas>
+          <svg viewBox="0 0 512 540" fill="none" id="quill_svg_fallback"
+            style="width:220px;height:240px;display:block;overflow:visible;filter:drop-shadow(0px 18px 30px rgba(14,165,233,0.32));">
+            <defs>
+              <!-- Left vane: pearl → sky → ocean → navy -->
+              <linearGradient id="qL" x1="100%" x2="0%" y1="0%" y2="100%">
+                <stop offset="0%"   stop-color="#e0f7fa"/>
+                <stop offset="12%"  stop-color="#7dd3fc"/>
+                <stop offset="35%"  stop-color="#0ea5e9"/>
+                <stop offset="62%"  stop-color="#0369a1"/>
+                <stop offset="100%" stop-color="#0c4a6e"/>
+              </linearGradient>
+              <!-- Right vane: cooler indigo-blue -->
+              <linearGradient id="qR" x1="100%" x2="0%" y1="0%" y2="100%">
+                <stop offset="0%"   stop-color="#dbeafe"/>
+                <stop offset="20%"  stop-color="#93c5fd"/>
+                <stop offset="50%"  stop-color="#3b82f6"/>
+                <stop offset="100%" stop-color="#1e3a8a"/>
+              </linearGradient>
+              <!-- Spine: bright pearl white -->
+              <linearGradient id="qSp" x1="0%" x2="0%" y1="0%" y2="100%">
+                <stop offset="0%"   stop-color="#ffffff"/>
+                <stop offset="40%"  stop-color="#bae6fd"/>
+                <stop offset="100%" stop-color="#38bdf8"/>
+              </linearGradient>
+              <!-- Nib metallic -->
+              <linearGradient id="qNib" x1="0%" x2="100%" y1="0%" y2="100%">
+                <stop offset="0%"   stop-color="#f1f5f9"/>
+                <stop offset="45%"  stop-color="#94a3b8"/>
+                <stop offset="100%" stop-color="#334155"/>
+              </linearGradient>
+              <!-- Ink drop -->
+              <linearGradient id="qInk" x1="0%" x2="0%" y1="0%" y2="100%">
+                <stop offset="0%"   stop-color="#0c4a6e"/>
+                <stop offset="100%" stop-color="#0369a1" stop-opacity="0.2"/>
+              </linearGradient>
+              <!-- Shimmer bar -->
+              <linearGradient id="qShim" x1="0%" x2="100%" y1="0%" y2="0%">
+                <stop offset="0%"   stop-color="white" stop-opacity="0"/>
+                <stop offset="45%"  stop-color="white" stop-opacity="0.45"/>
+                <stop offset="55%"  stop-color="white" stop-opacity="0.55"/>
+                <stop offset="100%" stop-color="white" stop-opacity="0"/>
+              </linearGradient>
+              <!-- Feather clip for shimmer -->
+              <clipPath id="qClip">
+                <path d="M420,40 C350,25 248,52 172,112 C96,168 38,238 18,312 C3,372 24,422 86,447 C110,457 132,461 148,462 C166,420 212,370 252,305 C298,228 352,143 420,40 Z"/>
+              </clipPath>
+              <!-- Specular shine filter -->
+              <filter id="qShine" x="-15%" y="-15%" width="130%" height="130%">
+                <feGaussianBlur in="SourceAlpha" stdDeviation="2.5" result="b"/>
+                <feSpecularLighting in="b" surfaceScale="5" specularConstant="0.85"
+                  specularExponent="22" lighting-color="#e0f7fa" result="spec">
+                  <fePointLight x="80" y="-150" z="260"/>
+                </feSpecularLighting>
+                <feComposite in="spec" in2="SourceAlpha" operator="in" result="sc"/>
+                <feComposite in="SourceGraphic" in2="sc" operator="arithmetic" k1="0" k2="1" k3="0.7" k4="0"/>
+              </filter>
+              <!-- Glow filter -->
+              <filter id="qGlow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="11" result="blur"/>
+                <feColorMatrix in="blur" type="matrix"
+                  values="0 0 0 0 0.055  0 0 0 0 0.647  0 0 0 0 0.914  0 0 0 0.5 0"
+                  result="colorBlur"/>
+                <feMerge>
+                  <feMergeNode in="colorBlur"/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
+            </defs>
+
+            <!-- GLOW AURA -->
+            <g filter="url(#qGlow)" opacity="0.75">
+              <path d="M420,40 C350,25 248,52 172,112 C96,168 38,238 18,312 C3,372 24,422 86,447 C110,457 132,461 148,462 C166,420 212,370 252,305 C298,228 352,143 420,40 Z"
+                fill="#0ea5e9" opacity="0.28"/>
+            </g>
+
+            <!-- LEFT VANE (main, wide) -->
+            <path d="M420,40 C350,25 248,52 172,112 C96,168 38,238 18,312 C3,372 24,422 86,447 C110,457 132,461 148,462 C166,420 212,370 252,305 C298,228 352,143 420,40 Z"
+              fill="url(#qL)" filter="url(#qShine)"/>
+
+            <!-- RIGHT VANE (narrower) -->
+            <path d="M420,40 C450,68 464,110 454,155 C443,194 418,226 388,258 C358,287 328,318 298,350 C272,375 256,403 248,428 C244,443 248,457 250,462 L148,462 C166,420 212,370 252,305 C298,228 352,143 420,40 Z"
+              fill="url(#qR)" filter="url(#qShine)" opacity="0.87"/>
+
+            <!-- BARB LINES — left vane -->
+            <g stroke="rgba(255,255,255,0.22)" stroke-width="0.9" stroke-linecap="round">
+              <line x1="400" y1="68"  x2="262" y2="80"/>
+              <line x1="378" y1="96"  x2="210" y2="120"/>
+              <line x1="353" y1="130" x2="155" y2="178"/>
+              <line x1="326" y1="170" x2="100" y2="236"/>
+              <line x1="298" y1="215" x2="52"  y2="296"/>
+              <line x1="270" y1="264" x2="20"  y2="344"/>
+              <line x1="246" y1="313" x2="20"  y2="378"/>
+              <line x1="222" y1="360" x2="40"  y2="413"/>
+              <line x1="203" y1="402" x2="73"  y2="437"/>
+              <line x1="186" y1="437" x2="106" y2="451"/>
+            </g>
+
+            <!-- BARB LINES — right vane -->
+            <g stroke="rgba(255,255,255,0.18)" stroke-width="0.9" stroke-linecap="round">
+              <line x1="400" y1="68"  x2="438" y2="102"/>
+              <line x1="378" y1="96"  x2="450" y2="148"/>
+              <line x1="353" y1="130" x2="454" y2="182"/>
+              <line x1="326" y1="170" x2="447" y2="218"/>
+              <line x1="298" y1="215" x2="428" y2="255"/>
+              <line x1="270" y1="264" x2="398" y2="293"/>
+              <line x1="246" y1="313" x2="358" y2="333"/>
+              <line x1="222" y1="360" x2="312" y2="373"/>
+              <line x1="203" y1="402" x2="270" y2="410"/>
+              <line x1="186" y1="437" x2="242" y2="442"/>
+            </g>
+
+            <!-- FEATHER TIP SPLITS (natural barb separation near tip) -->
+            <g stroke="rgba(186,230,253,0.5)" stroke-width="1.1" stroke-linecap="round" fill="none">
+              <path d="M420,40 C415,54 404,64 393,68"/>
+              <path d="M418,43 C409,58 396,74 380,92" opacity="0.6"/>
+            </g>
+
+            <!-- SPINE (rachis) -->
+            <path d="M420,40 C380,100 330,176 285,256 C245,326 205,392 170,441 C161,453 154,459 148,462"
+              stroke="url(#qSp)" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+            <!-- Spine inner highlight -->
+            <path d="M420,40 C380,100 330,176 285,256 C245,326 205,392 170,441 C161,453 154,459 148,462"
+              stroke="rgba(255,255,255,0.55)" stroke-width="1.3" stroke-linecap="round" fill="none"/>
+
+            <!-- NIB -->
+            <g transform="translate(133, 445) rotate(-22)">
+              <rect x="-2" y="-3" width="20" height="7" rx="2" fill="#cbd5e1"/>
+              <path d="M8,2 L18,36 L8,48 L-2,36 Z" fill="url(#qNib)"/>
+              <line x1="8" y1="5"  x2="8" y2="44" stroke="#1e293b" stroke-width="1.1"/>
+              <line x1="-1" y1="10" x2="4" y2="20" stroke="rgba(255,255,255,0.4)" stroke-width="0.8"/>
+            </g>
+
+            <!-- SHIMMER SWEEP -->
+            <rect x="-65" y="0" width="95" height="512"
+              fill="url(#qShim)" clip-path="url(#qClip)" class="quill-shimmer-bar"/>
+
+            <!-- INK DROP (SMIL) — posición corregida dentro del viewBox -->
+            <g transform="translate(148, 450)">
+              <circle cx="0" cy="0" r="0" fill="url(#qInk)" opacity="0">
+                <animate attributeName="r"
+                  values="0;0;0;6;5;3.5;2;0"
+                  keyTimes="0;0.38;0.52;0.62;0.70;0.80;0.90;1"
+                  dur="6s" repeatCount="indefinite" begin="1.8s"/>
+                <animate attributeName="cy"
+                  values="0;0;0;2;14;34;56;72"
+                  keyTimes="0;0.38;0.52;0.62;0.70;0.80;0.90;1"
+                  dur="6s" repeatCount="indefinite" begin="1.8s"/>
+                <animate attributeName="opacity"
+                  values="0;0;0;1;0.85;0.55;0.2;0"
+                  keyTimes="0;0.38;0.52;0.62;0.70;0.80;0.90;1"
+                  dur="6s" repeatCount="indefinite" begin="1.8s"/>
+              </circle>
+            </g>
+          </svg>
+        </div>
+      </div>
+
+      <div class="splash-logo">LUMEN</div>
+
+      <div class="splash-sub">text assistant</div>
+      <div class="splash-phrase" id="sph">Preparando <span
+          class="dots"><span>.</span><span>.</span><span>.</span></span></div>
+    </div>
+  </div>
+
+
+
+
+  <!-- ══ HOME ══ -->
+  <div id="home" class="screen hidden">
+
+    <!-- Header -->
+    <div class="home-head-v2">
+      <div class="home-logo-v2">LUMEN</div>
+      <div class="home-tag-v2">text assistant</div>
+    </div>
+
+    <!-- Module cards grid -->
+    <div class="home-grid-v2">
+      <div class="module-card" data-m="simplificar" onclick="openMod('simplificar')">
+        <div class="module-card-icon"><span class="material-symbols-outlined">auto_fix_high</span></div>
+        <div>
+          <div class="module-card-name">Simplificar</div>
+          <div class="module-card-desc">Make concise</div>
+        </div>
+      </div>
+      <div class="module-card" data-m="burocracia" onclick="openMod('burocracia')">
+        <div class="module-card-icon"><span class="material-symbols-outlined">gavel</span></div>
+        <div>
+          <div class="module-card-name">Burocracia</div>
+          <div class="module-card-desc">Formalize</div>
+        </div>
+      </div>
+      <div class="module-card" data-m="apuntes" onclick="openMod('apuntes')">
+        <div class="module-card-icon"><span class="material-symbols-outlined">edit_note</span></div>
+        <div>
+          <div class="module-card-name">Apuntes</div>
+          <div class="module-card-desc">Take notes</div>
+        </div>
+      </div>
+      <div class="module-card" data-m="revision" onclick="openMod('revision')">
+        <div class="module-card-icon"><span class="material-symbols-outlined">spellcheck</span></div>
+        <div>
+          <div class="module-card-name">Revisión</div>
+          <div class="module-card-desc">Review</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Decorative quills at bottom -->
+    <div class="quills-wrapper-v2">
+      <svg style="position:absolute;height:0;width:0;overflow:hidden;">
+        <defs>
+          <linearGradient id="hqBlue" x1="0%" x2="100%" y1="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#bae6fd;stop-opacity:1" />
+            <stop offset="20%" style="stop-color:#0ea5e9;stop-opacity:1" />
+            <stop offset="50%" style="stop-color:#0284c7;stop-opacity:1" />
+            <stop offset="80%" style="stop-color:#0369a1;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#0c4a6e;stop-opacity:1" />
+          </linearGradient>
+          <linearGradient id="hqGreen" x1="0%" x2="100%" y1="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#bbf7d0;stop-opacity:1" />
+            <stop offset="20%" style="stop-color:#22c55e;stop-opacity:1" />
+            <stop offset="50%" style="stop-color:#16a34a;stop-opacity:1" />
+            <stop offset="80%" style="stop-color:#15803d;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#14532d;stop-opacity:1" />
+          </linearGradient>
+          <linearGradient id="hqRed" x1="0%" x2="100%" y1="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#fecaca;stop-opacity:1" />
+            <stop offset="20%" style="stop-color:#ef4444;stop-opacity:1" />
+            <stop offset="50%" style="stop-color:#dc2626;stop-opacity:1" />
+            <stop offset="80%" style="stop-color:#b91c1c;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#7f1d1d;stop-opacity:1" />
+          </linearGradient>
+          <linearGradient id="hqPurple" x1="0%" x2="100%" y1="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#e9d5ff;stop-opacity:1" />
+            <stop offset="20%" style="stop-color:#a855f7;stop-opacity:1" />
+            <stop offset="50%" style="stop-color:#9333ea;stop-opacity:1" />
+            <stop offset="80%" style="stop-color:#7e22ce;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#581c87;stop-opacity:1" />
+          </linearGradient>
+          <linearGradient id="hqSpine" x1="0%" x2="0%" y1="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#f0f9ff;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#7dd3fc;stop-opacity:1" />
+          </linearGradient>
+          <linearGradient id="hqNib" x1="0%" x2="100%" y1="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#e2e8f0;stop-opacity:1" />
+            <stop offset="50%" style="stop-color:#94a3b8;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#475569;stop-opacity:1" />
+          </linearGradient>
+          <filter id="hqShine" width="140%" height="140%" x="-20%" y="-20%">
+            <feGaussianBlur in="SourceAlpha" result="blur" stdDeviation="2" />
+            <feOffset dx="1" dy="2" in="blur" result="offsetBlur" />
+            <feSpecularLighting in="blur" lighting-color="#fff" result="specOut" specularConstant=".8"
+              specularExponent="25" surfaceScale="5">
+              <fePointLight x="-5000" y="-10000" z="20000" />
+            </feSpecularLighting>
+            <feComposite in="specOut" in2="SourceAlpha" operator="in" result="specOut" />
+            <feComposite in="SourceGraphic" in2="specOut" k1="0" k2="1" k3="1" k4="0" operator="arithmetic"
+              result="litPaint" />
+          </filter>
+        </defs>
+      </svg>
+
+      <!-- Green quill – far left -->
+      <div class="quill-float-v2" style="left:-10px;transform:rotate(-15deg) translateY(20px) scale(0.65);">
+        <svg width="200" height="200" viewBox="0 0 512 512" fill="none">
+          <path d="M420 40 C420 40 320 180 260 250 C220 290 180 320 160 380 C150 410 148 430 148 450"
+            fill="url(#hqGreen)" filter="url(#hqShine)" />
+          <path d="M420 40 C440 80 440 160 380 240 C340 290 260 380 148 450" fill="url(#hqGreen)" filter="url(#hqShine)"
+            opacity="0.9" />
+          <path d="M420 40 Q 300 180 148 450" fill="none" stroke="url(#hqSpine)" stroke-linecap="round"
+            stroke-width="3" />
+          <g transform="translate(136,430) rotate(-15)">
+            <path d="M12 0 L24 40 L12 50 L0 40 Z" fill="url(#hqNib)" />
+          </g>
+        </svg>
+      </div>
+
+      <!-- Purple quill – far right -->
+      <div class="quill-float-v2" style="right:-20px;transform:rotate(20deg) translateY(10px) scale(0.7);">
+        <svg width="200" height="200" viewBox="0 0 512 512" fill="none">
+          <path d="M420 40 C420 40 320 180 260 250 C220 290 180 320 160 380 C150 410 148 430 148 450"
+            fill="url(#hqPurple)" filter="url(#hqShine)" />
+          <path d="M420 40 C440 80 440 160 380 240 C340 290 260 380 148 450" fill="url(#hqPurple)"
+            filter="url(#hqShine)" opacity="0.9" />
+          <path d="M420 40 Q 300 180 148 450" fill="none" stroke="url(#hqSpine)" stroke-linecap="round"
+            stroke-width="3" />
+          <g transform="translate(136,430) rotate(-15)">
+            <path d="M12 0 L24 40 L12 50 L0 40 Z" fill="url(#hqNib)" />
+          </g>
+        </svg>
+      </div>
+
+      <!-- Red quill – center left -->
+      <div class="quill-float-v2" style="left:20%;transform:rotate(-5deg) translateY(10px) scale(0.85);">
+        <svg width="200" height="200" viewBox="0 0 512 512" fill="none">
+          <path d="M420 40 C420 40 320 180 260 250 C220 290 180 320 160 380 C150 410 148 430 148 450" fill="url(#hqRed)"
+            filter="url(#hqShine)" />
+          <path d="M420 40 C440 80 440 160 380 240 C340 290 260 380 148 450" fill="url(#hqRed)" filter="url(#hqShine)"
+            opacity="0.9" />
+          <path d="M420 40 Q 300 180 148 450" fill="none" stroke="url(#hqSpine)" stroke-linecap="round"
+            stroke-width="3" />
+          <g transform="translate(136,430) rotate(-15)">
+            <path d="M12 0 L24 40 L12 50 L0 40 Z" fill="url(#hqNib)" />
+          </g>
+        </svg>
+      </div>
+
+      <!-- Blue quill – center right (interactive) -->
+      <div class="quill-float-v2 bubble-wrap"
+        style="right:25%;transform:rotate(10deg) translateY(-5px) scale(0.9);pointer-events:auto;">
+        <div class="bubble" id="hb" style="bottom:calc(100% + 10px);top:auto;"></div>
+        <div id="hp" onclick="penClick('hp','hb')" style="cursor:pointer;">
+          <svg width="200" height="200" viewBox="0 0 512 512" fill="none">
+            <g id="hpb">
+              <path d="M420 40 C420 40 320 180 260 250 C220 290 180 320 160 380 C150 410 148 430 148 450"
+                fill="url(#hqBlue)" filter="url(#hqShine)" />
+              <path d="M420 40 C440 80 440 160 380 240 C340 290 260 380 148 450" fill="url(#hqBlue)"
+                filter="url(#hqShine)" opacity="0.9" />
+              <path d="M420 40 Q 300 180 148 450" fill="none" stroke="url(#hqSpine)" stroke-linecap="round"
+                stroke-width="3" />
+              <g transform="translate(136,430) rotate(-15)">
+                <path d="M12 0 L24 40 L12 50 L0 40 Z" fill="url(#hqNib)" />
+              </g>
+            </g>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ MODULE ══ -->
+  <div id="mod" class="screen hidden">
+    <div class="mod-head">
+      <button class="btn-back" onclick="goHome()" title="Volver">&#8592;</button>
+      <div class="mod-title-wrap">
+        <div class="mod-title" id="mt">Módulo</div>
+        <div class="mod-sub" id="ms"></div>
+      </div>
+      <div class="pen-sm-wrap bubble-wrap">
+        <div class="bubble" id="mb"></div>
+        <div class="pen pen-sm" id="mp" onclick="penClick('mp','mb')">
+          <svg viewBox="0 0 100 100" fill="none">
+            <g id="mpb">
+              <path id="pc"
+                d="M50 8 C64 8 78 22 80 42 C82 62 74 78 62 90 L50 97 L38 90 C26 78 18 62 20 42 C22 22 36 8 50 8 Z"
+                fill="#2563eb" />
+              <path d="M50 8 C64 8 78 22 80 42 C82 62 74 78 62 90 L50 97" fill="rgba(255,255,255,0.08)" />
+              <path d="M50 9 Q51 53 50 96" stroke="rgba(255,255,255,0.7)" stroke-width="1.2" stroke-linecap="round"
+                fill="none" />
+              <path d="M48 22 C41 25 34 27 27 27" stroke="rgba(255,255,255,0.28)" stroke-width="0.9"
+                stroke-linecap="round" />
+              <path d="M47 34 C40 37 33 39 26 38" stroke="rgba(255,255,255,0.23)" stroke-width="0.9"
+                stroke-linecap="round" />
+              <path d="M46 46 C39 49 32 50 25 50" stroke="rgba(255,255,255,0.20)" stroke-width="0.9"
+                stroke-linecap="round" />
+              <path d="M52 22 C59 25 66 27 73 27" stroke="rgba(255,255,255,0.28)" stroke-width="0.9"
+                stroke-linecap="round" />
+              <path d="M53 34 C60 37 67 39 74 38" stroke="rgba(255,255,255,0.23)" stroke-width="0.9"
+                stroke-linecap="round" />
+              <path d="M54 46 C61 49 68 50 75 50" stroke="rgba(255,255,255,0.20)" stroke-width="0.9"
+                stroke-linecap="round" />
+              <rect id="pcd" x="0" y="0" width="0" height="0" fill="#1d4ed8" />
+              <line x1="50" y1="97" x2="50" y2="100" stroke="#64748b" stroke-width="2" stroke-linecap="round" />
+            </g>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="mod-body">
+
+      <!-- INPUT TABS -->
+      <div class="tabs">
+        <button class="tab on" data-t="scan" onclick="switchTab('scan')">
+          <span class="material-symbols-outlined tab-icon-default">crop_free</span>
+          <span class="material-symbols-outlined tab-icon-buro">document_scanner</span>
+          <span class="material-symbols-outlined tab-icon-other">add_a_photo</span>
+          Escanear
+        </button>
+        <button class="tab" data-t="file" onclick="switchTab('file')">
+          <span class="material-symbols-outlined">folder_open</span>
+          Archivo
+        </button>
+        <button class="tab" data-t="text" onclick="switchTab('text')">
+          <span class="material-symbols-outlined tab-text-default">edit_note</span>
+          <span class="material-symbols-outlined tab-text-other">keyboard</span>
+          Texto
+        </button>
+        <button class="tab" data-t="audio" onclick="switchTab('audio')">
+          <span class="material-symbols-outlined">mic</span>
+          Audio
+        </button>
+      </div>
+
+      <!-- SCAN -->
+      <div class="panel on" id="p-scan">
+        <div class="drop" id="dz-scan" onclick="document.getElementById('fi-scan').click()" ondragover="dov(event)"
+          ondragleave="dlv(event)" ondrop="ddrop(event,'scan')">
+          <input type="file" id="fi-scan" accept="image/*" capture="environment" onchange="fsel(event,'scan')">
+          <div class="drop-icon">🔍</div>
+          <p>Toca para abrir la cámara</p>
+          <small>o arrastra una imagen</small>
+        </div>
+        <div class="chip" id="ch-scan" style="display:none">
+          📷 <span id="fn-scan"></span>
+          <button onclick="clearF('scan')">✕</button>
+        </div>
+      </div>
+
+      <!-- FILE -->
+      <div class="panel" id="p-file">
+        <div class="drop" id="dz-file" onclick="document.getElementById('fi-file').click()" ondragover="dov(event)"
+          ondragleave="dlv(event)" ondrop="ddrop(event,'file')">
+          <input type="file" id="fi-file" accept=".pdf,.doc,.docx,.txt,image/*" onchange="fsel(event,'file')">
+          <div class="drop-icon">📄</div>
+          <p>Arrastra o toca para subir</p>
+          <small>PDF, imagen, Word, texto</small>
+        </div>
+        <div class="chip" id="ch-file" style="display:none">
+          📄 <span id="fn-file"></span>
+          <button onclick="clearF('file')">✕</button>
+        </div>
+      </div>
+
+      <!-- TEXT -->
+      <div class="panel" id="p-text">
+        <div class="buro-chrome">
+          <span class="buro-chrome-dot"></span>
+          <span class="buro-chrome-label">Entrada Manual</span>
+          <span class="buro-chrome-date" id="buro-date"></span>
+        </div>
+        <div class="rev-chrome">
+          <div class="mac-dots">
+            <span class="mac-dot red"></span>
+            <span class="mac-dot amber"></span>
+            <span class="mac-dot green"></span>
+          </div>
+          <span class="rev-mode-label">Modo Editor</span>
+        </div>
+        <div class="ta-wrap">
+          <textarea class="lta" id="ta" placeholder="Escribe o pega tu texto aquí…" rows="6"></textarea>
+          <button class="rev-paste-btn" title="Pegar"
+            onclick="navigator.clipboard.readText().then(t=>{const ta=document.getElementById('ta');ta.value+=t}).catch(()=>{})">
+            <span class="material-symbols-outlined">content_paste</span>
+          </button>
+        </div>
+        <div class="simp-status">
+          <span class="status-dot"></span>
+          <span>Español detectado</span>
+        </div>
+      </div>
+
+      <!-- AUDIO -->
+      <div class="panel" id="p-audio">
+        <div class="audio-box">
+          <button class="rec-btn" id="rb" onclick="toggleRec()">🎙️</button>
+          <div class="rec-timer" id="rt">0:00</div>
+          <div class="rec-lbl" id="rl">Toca para grabar</div>
+          <div class="audio-prev" id="ap">
+            <audio controls id="apl"></audio>
+          </div>
+        </div>
+        <div class="audio-file-drop">
+          <div class="drop" onclick="document.getElementById('fi-audio').click()" style="padding:1.1rem">
+            <input type="file" id="fi-audio" accept="audio/*,video/*" onchange="asel(event)">
+            <div class="drop-icon" style="font-size:1.4rem">🎵</div>
+            <p style="font-size:0.78rem">O sube un archivo de audio</p>
+          </div>
+          <div class="chip" id="ch-audio" style="display:none">
+            🎵 <span id="fn-audio"></span>
+            <button onclick="clearAudio()">✕</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODULE EXTRAS -->
+      <div id="mx"></div>
+
+      <!-- SUBMIT -->
+      <button class="btn-go" id="bg" onclick="submit()">
+        <span id="bi">✨</span> <span id="bl">Analizar</span>
+      </button>
+
+      <!-- ERROR -->
+      <div class="err" id="er"></div>
+
+      <!-- LOADING -->
+      <div class="loading" id="ld">
+        <div class="ld-pen">
+          <svg width="64" height="64" viewBox="0 0 100 100" fill="none">
+            <path id="lpc"
+              d="M50 8 C64 8 78 22 80 42 C82 62 74 78 62 90 L50 97 L38 90 C26 78 18 62 20 42 C22 22 36 8 50 8 Z"
+              fill="#2563eb" />
+            <path d="M50 8 C64 8 78 22 80 42 C82 62 74 78 62 90 L50 97" fill="rgba(255,255,255,0.08)" />
+            <path d="M50 9 Q51 53 50 96" stroke="rgba(255,255,255,0.7)" stroke-width="1.2" stroke-linecap="round"
+              fill="none" />
+            <path d="M48 22 C41 25 34 27 27 27" stroke="rgba(255,255,255,0.28)" stroke-width="0.9"
+              stroke-linecap="round" />
+            <path d="M47 34 C40 37 33 39 26 38" stroke="rgba(255,255,255,0.23)" stroke-width="0.9"
+              stroke-linecap="round" />
+            <path d="M52 22 C59 25 66 27 73 27" stroke="rgba(255,255,255,0.28)" stroke-width="0.9"
+              stroke-linecap="round" />
+            <path d="M53 34 C60 37 67 39 74 38" stroke="rgba(255,255,255,0.23)" stroke-width="0.9"
+              stroke-linecap="round" />
+            <line x1="50" y1="97" x2="50" y2="100" stroke="#64748b" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div class="ld-phrase" id="lp">Procesando…</div>
+        <div class="ld-dots"><span></span><span></span><span></span></div>
+      </div>
+
+      <!-- RESULTS -->
+      <div class="results" id="res"></div>
+
+    </div>
+  </div>
+
+  <!-- ══ SCRIPT ══ -->
+  <script>
+    const API = 'https://lumen-backend-674628598121.europe-west1.run.app';
+
+    const MODS = {
+      simplificar: {
+        title: 'Simplificar',
+        sub: 'Adapta textos difíciles a lenguaje claro',
+        color: '#2563eb', dark: '#1d4ed8', bg: '#eff6ff',
+        label: 'Simplificar',
+        endpoint: '/traduceme',
+        phrases: ['Leyendo el texto…', 'Buscando palabras más claras…', 'Eliminando tecnicismos…', 'Casi listo…'],
+      },
+      burocracia: {
+        title: 'Burocracia',
+        sub: 'Entiende documentos oficiales',
+        color: '#16a34a', dark: '#15803d', bg: '#f0fdf4',
+        label: 'Analizar documento',
+        endpoint: '/burocracia',
+        phrases: ['Descifrando el lenguaje oficial…', 'Identificando tus derechos…', 'Organizando la información…', 'Casi listo…'],
+      },
+      apuntes: {
+        title: 'Apuntes',
+        sub: 'Transcribe y resume',
+        color: '#ea580c', dark: '#c2410c', bg: '#fff7ed',
+        label: 'Transcribir y resumir',
+        endpoint: '/apuntes',
+        phrases: ['Escuchando el audio…', 'Transcribiendo con Whisper…', 'Identificando puntos clave…', 'Casi listo…'],
+      },
+      revision: {
+        title: 'Revisión',
+        sub: 'Mejora lo que escribes',
+        color: '#7c3aed', dark: '#6d28d9', bg: '#f5f3ff',
+        label: 'Revisar y mejorar',
+        endpoint: '/revision',
+        phrases: ['Leyendo tu texto…', 'Ajustando el tono…', 'Buscando la versión perfecta…', 'Casi listo…'],
+      },
+    };
+
+    const PHRASES = ['¡Aquí estoy!', 'A tu servicio.', '¿Necesitas algo?', '¡Vamos!', 'Soy todo oídos.', 'Listo para escribir.'];
+    const SPLASH_PH = ['Preparando la tinta…', 'Afilando la punta…', 'Cargando palabras…', 'Casi listo…'];
+
+    let curMod = null, curTab = 'scan';
+    let scanF = null, docF = null, audBlob = null, audFile = null;
+    let mr = null, recChunks = [], recSec = 0, recInt = null, isRec = false;
+    let simpResult = null;
+    let ctxSel = 'Trabajo';
+
+    // ── INIT ──
+    // ── SERVICE WORKER ──
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .catch(() => {}); // silencioso si falla (localhost sin HTTPS, etc.)
+      });
+    }
+
+    window.addEventListener('load', () => {
+      startCanvas();
+      splashGo();
+      fetch(API + '/').catch(() => { });
+      
+      // Tilt 3D individual por card — calculado relativo al centro de cada card
+      const MAX_TILT = 14; // grados máximos
+      document.querySelectorAll('.module-card').forEach(card => {
+        card.addEventListener('mousemove', e => {
+          const r   = card.getBoundingClientRect();
+          const cx  = r.left + r.width  / 2;
+          const cy  = r.top  + r.height / 2;
+          const dx  = (e.clientX - cx) / (r.width  / 2);  // -1 … +1
+          const dy  = (e.clientY - cy) / (r.height / 2);  // -1 … +1
+          const ry  =  dx * MAX_TILT;
+          const rx  = -dy * MAX_TILT;
+          // Posición relativa del cursor dentro de la card (para el brillo especular)
+          const px  = ((e.clientX - r.left) / r.width  * 100).toFixed(1) + '%';
+          const py  = ((e.clientY - r.top)  / r.height * 100).toFixed(1) + '%';
+          card.style.transform = `perspective(900px) rotateX(${rx}deg) rotateY(${ry}deg) translateZ(20px)`;
+          card.style.boxShadow = `${-dx*18}px ${-dy*18}px 36px -4px rgba(0,0,0,0.22), 0 10px 20px -4px rgba(0,0,0,0.10)`;
+          card.style.setProperty('--cx', px);
+          card.style.setProperty('--cy', py);
+        });
+        card.addEventListener('mouseleave', () => {
+          card.style.transform = '';
+          card.style.boxShadow = '';
+          card.style.setProperty('--cx', '50%');
+          card.style.setProperty('--cy', '50%');
+        });
+      });
+      
+      initQuill3D();
+    });
+
+    async function initQuill3D() {
+      const cv = document.getElementById('quill_canvas');
+      if (!cv) return;
+      // Comprobar soporte WebGL2 antes de cargar el WASM
+      if (!cv.getContext('webgl2')) {
+        cv.style.display = 'none';
+        const fb = document.getElementById('quill_svg_fallback');
+        if (fb) fb.style.display = 'block';
+        return;
+      }
+      try {
+        const { default: init, Quill, run } = await import('./pkg/lumen_quill.js');
+        await init();
+        const quill = new Quill('quill_canvas');
+        
+        document.addEventListener('mousemove', e => {
+          quill.set_tilt(e.clientX - window.innerWidth/2, e.clientY - window.innerHeight/2);
+        });
+        document.addEventListener('touchmove', e => {
+          if (e.touches.length > 0)
+            quill.set_tilt(e.touches[0].clientX - window.innerWidth/2, e.touches[0].clientY - window.innerHeight/2);
+        }, { passive: true });
+        let prev = performance.now();
+        (function frame(now){
+          const dt = Math.min((now - prev) / 1000, 0.05);
+          prev = now;
+          quill.tick(dt);
+          quill.render(now / 1000, 220, 420);
+          requestAnimationFrame(frame);
+        })(performance.now());
+
+        // Arrancar el fondo de nebulosa (Al final para no bloquear la pluma)
+        if (run) run(); 
+      } catch(err) {
+        console.warn('3D quill error:', err);
+        cv.style.display = 'none';
+        const fb = document.getElementById('quill_svg_fallback');
+        if (fb) fb.style.display = 'block';
+      }
+    }
+
+    // ── SPLASH ──
+    function splashGo() {
+      // Cicla las frases ambientales mientras la pluma escribe
+      let i = 0;
+      const el = document.getElementById('sph');
+      const cycle = setInterval(() => {
+        i++;
+        if (i >= SPLASH_PH.length) { clearInterval(cycle); return; }
+        el.style.opacity = 0;
+        setTimeout(() => { el.innerHTML = SPLASH_PH[i]; el.style.opacity = 1; }, 280);
+      }, 900);
+      // La pluma escribirá LUMEN y llamará a toHome() al terminar
+      initWriting();
+    }
+    function toHome() { show('home'); }
+
+    // ══════════════════════════════════════════════════════════════
+    // ANIMACIÓN DE ESCRITURA — La pluma revela "LUMEN" en Cinzel
+    // Usa canvas fillText → letterforms perfectas, consistentes, elegantes
+    // ══════════════════════════════════════════════════════════════
+    async function initWriting() {
+      const splash  = document.getElementById('splash');
+      const wCanvas = document.getElementById('write-canvas');
+      const quill   = document.getElementById('sp');
+      const ctx     = wCanvas.getContext('2d');
+
+      // Canvas retina-aware
+      const W   = window.innerWidth;
+      const H   = window.innerHeight;
+      const dpr = window.devicePixelRatio || 1;
+      wCanvas.width  = W * dpr;
+      wCanvas.height = H * dpr;
+      ctx.scale(dpr, dpr);
+
+      // Tamaño de fuente responsivo
+      const fontSize = Math.max(58, Math.min(108, W * 0.215));
+      const bY       = H * 0.50;  // baseline vertical
+
+      // Esperar a que Cinzel esté cargada (suele ya estar en load event)
+      try { await document.fonts.load(`700 ${fontSize}px 'Cinzel'`); } catch(e) {}
+
+      // Medir el texto en un contexto limpio (sin escala dpr)
+      const _mc = document.createElement('canvas').getContext('2d');
+      _mc.font  = `700 ${fontSize}px 'Cinzel', Georgia, serif`;
+      const textWidth = _mc.measureText('LUMEN').width;
+      const textLeft  = W / 2 - textWidth / 2;
+      const textRight = textLeft + textWidth;
+
+      // Pre-renderizar "LUMEN" completo en canvas offscreen con glow
+      const oc   = document.createElement('canvas');
+      oc.width   = W * dpr;
+      oc.height  = H * dpr;
+      const octx = oc.getContext('2d');
+      octx.scale(dpr, dpr);
+      octx.font         = `700 ${fontSize}px 'Cinzel', Georgia, serif`;
+      octx.textAlign    = 'center';
+      octx.textBaseline = 'alphabetic';
+      // Capa 1: glow amplio azul
+      octx.shadowColor = 'rgba(70, 140, 255, 0.65)';
+      octx.shadowBlur  = 32;
+      octx.fillStyle   = 'rgba(195, 228, 255, 0.88)';
+      octx.fillText('LUMEN', W / 2, bY);
+      // Capa 2: trazo nítido brillante encima
+      octx.shadowColor = 'rgba(180, 215, 255, 0.90)';
+      octx.shadowBlur  = 10;
+      octx.fillStyle   = 'rgba(238, 250, 255, 0.97)';
+      octx.fillText('LUMEN', W / 2, bY);
+
+      // Offset del plumín en el elemento (rotado -30deg) — calculado geométricamente
+      const NIB_X = 122, NIB_Y = 224;
+
+      // Y de escritura ≈ cap-line (Cinzel cap-height ≈ 72% de fontSize)
+      const writeY = bY - fontSize * 0.72;
+
+      // Posición de inicio: centrado, por encima del área de escritura
+      const startX = W / 2;
+      const startY = writeY - fontSize * 0.75;
+
+      // Posicionar la pluma en su posición inicial
+      quill.classList.remove('float-anim');
+      quill.style.cssText = `
+        position: fixed;
+        left: ${startX - NIB_X}px;
+        top:  ${startY - NIB_Y}px;
+        margin: 0;
+        transform: rotate(-30deg);
+        z-index: 50;
+        pointer-events: none;
+        filter: drop-shadow(0px 10px 22px rgba(14,165,233,0.55));
+        transition: none;
+      `;
+
+      splash.classList.add('writing');
+
+      // Duraciones
+      const APPROACH = 520;   // ms: la pluma desciende hasta la primera letra
+      const WRITING  = 3600;  // ms: la pluma recorre LUMEN de L a N
+      const TOTAL    = APPROACH + WRITING;
+
+      const easeOut   = t => 1 - (1 - t) * (1 - t);
+      const easeInOut = t => t < 0.5 ? 2*t*t : -1 + (4 - 2*t)*t;
+
+      let startTs = null;
+
+      function frame(ts) {
+        if (!startTs) startTs = ts;
+        const elapsed = ts - startTs;
+
+        let nibX, nibY, revealX;
+
+        if (elapsed < APPROACH) {
+          // Fase de acercamiento: la pluma baja desde arriba-centro hasta el inicio de L
+          const p = easeOut(elapsed / APPROACH);
+          nibX    = startX + (textLeft - startX) * p;
+          nibY    = startY + (writeY   - startY) * p;
+          revealX = 0; // nada revelado aún
+        } else if (elapsed < TOTAL) {
+          // Fase de escritura: la pluma avanza de izquierda a derecha
+          const p = easeInOut((elapsed - APPROACH) / WRITING);
+          nibX    = textLeft + (textRight - textLeft) * p;
+          // Leve ondulación vertical que simula el ritmo de escritura
+          nibY    = writeY + Math.sin(p * Math.PI * 8) * (fontSize * 0.04);
+          revealX = nibX;
+        } else {
+          // Animación completa: mostrar texto entero y salir
+          ctx.clearRect(0, 0, W, H);
+          ctx.drawImage(oc, 0, 0, W, H);
+          quill.style.transition = 'opacity 0.65s ease, transform 0.65s ease';
+          quill.style.opacity    = '0';
+          quill.style.transform  = 'rotate(-30deg) translateY(-50px)';
+          splash.classList.remove('writing');
+          setTimeout(toHome, 1000);
+          return;
+        }
+
+        // Revelar el texto hasta la posición del plumín
+        ctx.clearRect(0, 0, W, H);
+        if (revealX > 0) {
+          ctx.save();
+          ctx.beginPath();
+          // Clip: muestra solo la parte ya "escrita" (izquierda del plumín)
+          ctx.rect(0, 0, revealX + fontSize * 0.03, H);
+          ctx.clip();
+          ctx.drawImage(oc, 0, 0, W, H);
+          ctx.restore();
+        }
+
+        // Mover el elemento de la pluma
+        quill.style.left = (nibX - NIB_X) + 'px';
+        quill.style.top  = (nibY - NIB_Y) + 'px';
+
+        requestAnimationFrame(frame);
+      }
+
+      requestAnimationFrame(frame);
+    }
+
+    // ── SCREEN TRANSITIONS ──
+    function show(id) {
+      const incoming = document.getElementById(id);
+
+      // 1. Marcar la pantalla entrante como "entering" (invisible, escalada +4%)
+      incoming.classList.add('entering');
+      incoming.classList.remove('hidden');
+      incoming.scrollTop = 0;
+
+      // 2. Ocultar todas las demás (salen encogidas + blur)
+      document.querySelectorAll('.screen').forEach(s => {
+        if (s !== incoming) s.classList.add('hidden');
+      });
+
+      // 3. Un frame después: quitar "entering" → la transición CSS arranca
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          incoming.classList.remove('entering');
+        });
+      });
+    }
+
+    function goHome() {
+      resetMod();
+      show('home');
+    }
+
+    // ── OPEN MODULE ──
+    function openMod(id) {
+      curMod = id;
+      const c = MODS[id];
+      const r = document.documentElement;
+      r.style.setProperty('--mod', c.color);
+      r.style.setProperty('--mod-bg', c.bg);
+      document.getElementById('pc').setAttribute('fill', c.color);
+      document.getElementById('pcd').setAttribute('fill', c.dark);
+      document.getElementById('lpc').setAttribute('fill', c.color);
+      document.getElementById('mt').textContent = c.title;
+      document.getElementById('ms').textContent = c.sub;
+      document.getElementById('bl').textContent = c.label;
+      document.getElementById('mod').setAttribute('data-mod', id);
+      const bd = document.getElementById('buro-date');
+      if (bd) { const now = new Date(); bd.textContent = now.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase(); }
+      switchTab('scan');
+      renderExtras(id);
+      clearResults();
+      show('mod');
+    }
+
+    // ── EXTRAS ──
+    function renderExtras(id) {
+      const el = document.getElementById('mx');
+      if (id === 'revision') {
+        el.innerHTML = `
+      <div style="margin-bottom:1rem">
+        <label class="field-lbl">Contexto del mensaje</label>
+        <div class="ctx-grid">
+          ${[['Trabajo', '💼'], ['Pareja', '💛'], ['Familia', '🏠'], ['Legal', '⚖️']].map(([l, ic]) =>
+          `<button class="ctx-btn${l === ctxSel ? ' on' : ''}" onclick="setSel('${l}',this)">${ic} ${l}</button>`
+        ).join('')}
+        </div>
+      </div>`;
+      } else {
+        el.innerHTML = '';
+      }
+    }
+
+    function setSel(v, btn) {
+      ctxSel = v;
+      btn.closest('.ctx-grid').querySelectorAll('.ctx-btn').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+    }
+
+    // ── TABS ──
+    function switchTab(t) {
+      curTab = t;
+      document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+      document.querySelectorAll('.panel').forEach(p => p.classList.toggle('on', p.id === 'p-' + t));
+    }
+
+    // ── FILE HANDLING ──
+    function fsel(e, type) {
+      const f = e.target.files[0]; if (!f) return;
+      if (type === 'scan') { scanF = f; document.getElementById('fn-scan').textContent = f.name; document.getElementById('ch-scan').style.display = 'inline-flex'; }
+      else { docF = f; document.getElementById('fn-file').textContent = f.name; document.getElementById('ch-file').style.display = 'inline-flex'; }
+    }
+    function clearF(type) {
+      if (type === 'scan') { scanF = null; document.getElementById('fi-scan').value = ''; document.getElementById('ch-scan').style.display = 'none'; }
+      else { docF = null; document.getElementById('fi-file').value = ''; document.getElementById('ch-file').style.display = 'none'; }
+    }
+    function dov(e) { e.preventDefault(); e.currentTarget.classList.add('over'); }
+    function dlv(e) { e.currentTarget.classList.remove('over'); }
+    function ddrop(e, type) {
+      e.preventDefault(); e.currentTarget.classList.remove('over');
+      const f = e.dataTransfer.files[0]; if (!f) return;
+      fsel({ target: { files: [f] } }, type);
+    }
+
+    // ── AUDIO ──
+    async function toggleRec() {
+      if (!isRec) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mr = new MediaRecorder(stream);
+          recChunks = [];
+          mr.ondataavailable = e => recChunks.push(e.data);
+          mr.onstop = () => {
+            audBlob = new Blob(recChunks, { type: 'audio/webm' });
+            const url = URL.createObjectURL(audBlob);
+            document.getElementById('apl').src = url;
+            document.getElementById('ap').style.display = 'block';
+            stream.getTracks().forEach(t => t.stop());
+          };
+          mr.start(); isRec = true; recSec = 0;
+          document.getElementById('rb').classList.add('on');
+          document.getElementById('rb').textContent = '⏹️';
+          document.getElementById('rl').textContent = 'Grabando… toca para detener';
+          document.getElementById('rt').style.display = 'block';
+          recInt = setInterval(() => {
+            recSec++;
+            const m = Math.floor(recSec / 60), s = recSec % 60;
+            document.getElementById('rt').textContent = `${m}:${s.toString().padStart(2, '0')}`;
+          }, 1000);
+        } catch (e) { showErr('No se pudo acceder al micrófono.'); }
+      } else {
+        mr.stop(); isRec = false; clearInterval(recInt);
+        document.getElementById('rb').classList.remove('on');
+        document.getElementById('rb').textContent = '🎙️';
+        document.getElementById('rl').textContent = 'Grabación guardada. Toca para grabar de nuevo.';
+        document.getElementById('rt').style.display = 'none';
+      }
+    }
+    function asel(e) {
+      audFile = e.target.files[0]; if (!audFile) return;
+      document.getElementById('fn-audio').textContent = audFile.name;
+      document.getElementById('ch-audio').style.display = 'inline-flex';
+    }
+    function clearAudio() {
+      audFile = null;
+      document.getElementById('fi-audio').value = '';
+      document.getElementById('ch-audio').style.display = 'none';
+    }
+
+    // ── SUBMIT ──
+    async function submit() {
+      hideErr();
+      const c = MODS[curMod];
+      let isJson = false;
+      let fd = new FormData();
+      let jsonBody = null;
+      let ok = false;
+
+      if (curTab === 'text') {
+        const t = document.getElementById('ta').value.trim();
+        if (!t) { showErr('Escribe o pega texto antes de continuar.'); return; }
+        isJson = true;
+        jsonBody = { text: t };
+        if (curMod === 'revision') jsonBody.contexto = ctxSel;
+        ok = true;
+      } else if (curTab === 'scan') {
+        if (!scanF) { showErr('Selecciona o escanea una imagen.'); return; }
+        fd.append('image', scanF); ok = true;
+      } else if (curTab === 'file') {
+        if (!docF) { showErr('Selecciona un archivo.'); return; }
+        fd.append('file', docF); ok = true;
+      } else if (curTab === 'audio') {
+        const blob = audFile || audBlob;
+        if (!blob) { showErr('Graba o sube un audio primero.'); return; }
+        fd.append('audio', blob instanceof File ? blob : new File([blob], 'rec.webm', { type: 'audio/webm' }));
+        ok = true;
+      }
+      if (!ok) return;
+
+      if (!isJson && curMod === 'revision') fd.append('contexto', ctxSel);
+
+      showLoad();
+      let pi = 0;
+      const pit = setInterval(() => {
+        pi = (pi + 1) % c.phrases.length;
+        const lp = document.getElementById('lp');
+        lp.style.opacity = 0;
+        setTimeout(() => { lp.textContent = c.phrases[pi]; lp.style.opacity = 1; }, 280);
+      }, 2000);
+
+      try {
+        // Step 1: if image/file → extract text via /scan
+        if (curTab === 'scan' || curTab === 'file') {
+          const sr = await fetch(API + '/scan', { method: 'POST', body: fd });
+          if (!sr.ok) throw new Error('Error al procesar imagen (' + sr.status + ')');
+          const sd = await sr.json();
+          const txt = sd.text || '';
+          if (!txt) throw new Error('No se pudo extraer texto de la imagen.');
+          fd = new FormData();
+          fd.append('text', txt);
+          if (curMod === 'revision') fd.append('contexto', ctxSel);
+        }
+
+        // Step 2: if audio → transcribe first, then send text to module endpoint
+        if (curTab === 'audio') {
+          const tr = await fetch(API + '/transcribe', { method: 'POST', body: fd });
+          if (!tr.ok) throw new Error('Error al transcribir audio (' + tr.status + ')');
+          const td = await tr.json();
+          const txt = td.text || '';
+          if (!txt) throw new Error('No se pudo transcribir el audio.');
+          fd = new FormData();
+          fd.append('text', txt);
+          if (curMod === 'revision') fd.append('contexto', ctxSel);
+        }
+
+        // After scan/audio processing, text is in fd as FormData → convert to JSON
+        if (!isJson && (curTab === 'scan' || curTab === 'file' || curTab === 'audio')) {
+          const extractedText = fd.get('text');
+          if (extractedText) {
+            isJson = true;
+            jsonBody = { text: extractedText };
+            if (curMod === 'revision') jsonBody.contexto = ctxSel;
+          }
+        }
+
+        const fetchOpts = isJson
+          ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(jsonBody) }
+          : { method: 'POST', body: fd };
+
+        const r = await fetch(API + c.endpoint, fetchOpts);
+        clearInterval(pit);
+        if (!r.ok) throw new Error('Error del servidor (' + r.status + ')');
+        const data = await r.json();
+        hideLoad();
+        renderRes(data);
+      } catch (e) {
+        clearInterval(pit);
+        hideLoad();
+        showErr('Error: ' + e.message);
+      }
+    }
+
+    // ── RENDER RESULTS ──
+    function renderRes(data) {
+      const el = document.getElementById('res');
+      el.innerHTML = '';
+      el.classList.remove('on');
+
+      if (curMod === 'simplificar') {
+        // Backend returns: { nino, normal, experto, conceptos }
+        simpResult = { simple: data.nino || '', completa: data.normal || '' };
+        el.innerHTML = `
+      <div class="vtoggle">
+        <button class="vbtn on" id="vsim" onclick="showV('simple')">Simple</button>
+        <button class="vbtn" id="vcom" onclick="showV('completa')">Completa</button>
+      </div>
+      ${rcard('Versión simplificada', simpResult.simple, 'vtext')}
+      ${savebtn()}`;
+      } else if (curMod === 'burocracia') {
+        // Backend returns: { que_dicen, que_hago, y_si_no, derechos[], deberes[] }
+        const der = Array.isArray(data.derechos) ? data.derechos.join('\n') : (data.derechos || '');
+        const deb = Array.isArray(data.deberes) ? data.deberes.join('\n') : (data.deberes || '');
+        el.innerHTML = `
+      <div class="buro-cols">
+        <div class="bcol"><div class="bcol-t">\u00bfQu\u00e9 te piden?</div><div class="bcol-b">${esc(data.que_dicen || '')}</div></div>
+        <div class="bcol"><div class="bcol-t">\u00bfQu\u00e9 hago?</div><div class="bcol-b">${esc(data.que_hago || '')}</div></div>
+        <div class="bcol"><div class="bcol-t">\u00bfY si no lo hago?</div><div class="bcol-b">${esc(data.y_si_no || '')}</div></div>
+      </div>
+      <div class="rd-grid">
+        <div class="rd-card r"><div class="rd-t">Tus derechos</div><div class="rd-b">${esc(der)}</div></div>
+        <div class="rd-card d"><div class="rd-t">Tus obligaciones</div><div class="rd-b">${esc(deb)}</div></div>
+      </div>
+      ${savebtn()}`;
+      } else if (curMod === 'apuntes') {
+        // Backend returns: { resumen, puntos_clave[], accionables[], sin_resolver[] }
+        const pk = Array.isArray(data.puntos_clave) ? data.puntos_clave.map((p, i) => `${i + 1}. ${p}`).join('\n') : (data.puntos_clave || '');
+        const ac = Array.isArray(data.accionables) ? data.accionables.map(a => typeof a === 'object' ? (a.tarea + (a.responsable ? ` (${a.responsable})` : '')) : a).join('\n') : '';
+        const sr = Array.isArray(data.sin_resolver) ? data.sin_resolver.join('\n') : (data.sin_resolver || '');
+        el.innerHTML = `
+      ${rcard('Resumen', data.resumen || '', 'asum')}
+      ${pk ? rcard('Puntos clave', pk, 'apk') : ''}
+      ${ac ? rcard('Accionables', ac, 'aac') : ''}
+      ${sr ? rcard('Temas sin resolver', sr, 'asr') : ''}
+      ${savebtn()}`;
+      } else if (curMod === 'revision') {
+        // Backend returns: { problemas[], version_mejorada, tono_general, score_sentimiento }
+        const probs = Array.isArray(data.problemas) && data.problemas.length
+          ? data.problemas.map(p => `\u2022 ${p.frase}: ${p.explicacion}`).join('\n') : '';
+        el.innerHTML = `
+      ${rcard('Texto mejorado', data.version_mejorada || '', 'rtx')}
+      ${probs ? rcard('Observaciones', probs, 'robs') : ''}
+      ${savebtn()}`;
+      }
+
+      el.classList.add('on');
+      setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    }
+
+    function rcard(title, text, id) {
+      return `<div class="res-card">
+    <div class="res-head">
+      <div class="res-label"><div class="res-dot"></div>${title}</div>
+      <button class="btn-copy" onclick="cp('${id}')" title="Copiar">📋</button>
+    </div>
+    <div class="res-body" id="${id}">${esc(text)}</div>
+  </div>`;
+    }
+
+    function savebtn() {
+      return `<button class="btn-save" onclick="saveImg()">⬇ Guardar imagen</button>`;
+    }
+
+    function showV(v) {
+      const el = document.getElementById('vtext');
+      if (!el || !simpResult) return;
+      el.innerHTML = esc(v === 'simple' ? (simpResult.simple || simpResult.result || '') : (simpResult.completa || simpResult.complete || simpResult.result || ''));
+      document.getElementById('vsim').classList.toggle('on', v === 'simple');
+      document.getElementById('vcom').classList.toggle('on', v === 'completa');
+    }
+
+    // ── UTILS ──
+    function esc(s) {
+      if (!s) return '';
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+    }
+    function cp(id) {
+      const el = document.getElementById(id); if (!el) return;
+      navigator.clipboard.writeText(el.innerText || el.textContent).catch(() => { });
+    }
+    async function saveImg() {
+      if (typeof html2canvas === 'undefined') { showErr('html2canvas no disponible.'); return; }
+      try {
+        const c = await html2canvas(document.getElementById('res'), { backgroundColor: '#faf8f4', scale: 2 });
+        const a = document.createElement('a');
+        a.download = `lumen-${curMod}-${Date.now()}.png`;
+        a.href = c.toDataURL('image/png'); a.click();
+      } catch (e) { showErr('No se pudo guardar.'); }
+    }
+
+    function showLoad() {
+      document.getElementById('bg').disabled = true;
+      const c = MODS[curMod];
+      document.getElementById('lp').textContent = c.phrases[0];
+      document.getElementById('ld').classList.add('on');
+      document.getElementById('res').classList.remove('on');
+    }
+    function hideLoad() {
+      document.getElementById('bg').disabled = false;
+      document.getElementById('ld').classList.remove('on');
+    }
+    function showErr(msg) {
+      const el = document.getElementById('er'); el.textContent = msg; el.classList.add('on');
+    }
+    function hideErr() { document.getElementById('er').classList.remove('on'); }
+    function clearResults() {
+      hideErr(); hideLoad();
+      const r = document.getElementById('res'); r.innerHTML = ''; r.classList.remove('on');
+    }
+    function resetMod() {
+      scanF = null; docF = null; audBlob = null; audFile = null;
+      if (isRec) { try { mr.stop(); } catch (e) { } isRec = false; }
+      clearInterval(recInt); simpResult = null;
+    }
+
+    // ── PEN CLICK ──
+    function penClick(penId, bubId) {
+      const phrase = PHRASES[Math.floor(Math.random() * PHRASES.length)];
+      const b = document.getElementById(bubId);
+      b.textContent = phrase; b.classList.add('show');
+      clearTimeout(b._t); b._t = setTimeout(() => b.classList.remove('show'), 2500);
+      const pen = document.getElementById(penId);
+      pen.style.transition = 'transform 0.1s'; pen.style.transform = 'rotate(-10deg) scale(1.08)';
+      setTimeout(() => { pen.style.transform = ''; }, 350);
+      if (navigator.vibrate) navigator.vibrate(25);
+    }
+
+    // ── WORD CANVAS ──
+    const WPOOL = {
+      default: ['texto', 'palabra', 'frase', 'nota', 'ideas', 'lumen', 'escribe', 'lee', 'piensa', 'entiende', 'claridad', 'boli'],
+      simplificar: ['simple', 'claro', 'fácil', 'entender', 'adaptar', 'vocabulario', 'lenguaje', 'sentido', 'básico', 'comprensible'],
+      burocracia: ['artículo', 'decreto', 'resolución', 'notificación', 'plazo', 'derecho', 'deber', 'trámite', 'expediente', 'código'],
+      apuntes: ['reunión', 'idea', 'tarea', 'resumen', 'clave', 'notas', 'audio', 'voz', 'acción', 'punto', 'grabar'],
+      revision: ['tono', 'estilo', 'claridad', 'mensaje', 'carta', 'email', 'mejorar', 'pulir', 'registro', 'redactar'],
+    };
+
+    let ws = [];
+    function startCanvas() {
+      const cv = document.getElementById('wc');
+      const cx = cv.getContext('2d');
+      function rs() { cv.width = innerWidth; cv.height = innerHeight; }
+      rs(); addEventListener('resize', rs);
+
+      function pool() { return WPOOL[curMod] || WPOOL.default; }
+      function spawn() {
+        const p = pool(), w = p[Math.floor(Math.random() * p.length)];
+        ws.push({
+          t: w, x: 60 + Math.random() * (cv.width - 80), y: 20 + Math.random() * (cv.height - 30),
+          sz: 10 + Math.random() * 9, a: 0, ph: 'in', life: 0, max: 480 + Math.random() * 360
+        });
+      }
+      setInterval(spawn, 3500);
+      function tick() {
+        cx.clearRect(0, 0, cv.width, cv.height);
+        ws = ws.filter(w => w.ph !== 'dead');
+        for (const w of ws) {
+          w.life++;
+          if (w.ph === 'in') { w.a = Math.min(0.18, w.life / 200); if (w.a >= 0.18) w.ph = 'hold'; }
+          else if (w.ph === 'hold') { if (w.life >= w.max) w.ph = 'out'; }
+          else if (w.ph === 'out') { w.a -= 0.0008; if (w.a <= 0) w.ph = 'dead'; }
+          cx.save(); cx.globalAlpha = w.a;
+          cx.font = `italic ${w.sz}px Georgia,serif`;
+          cx.fillStyle = '#334155'; cx.fillText(w.t, w.x, w.y);
+          cx.restore();
+        }
+        if (ws.length < 10) spawn();
+        requestAnimationFrame(tick);
+      }
+      tick();
+    }
+  </script>
+
+  <!-- html2canvas lazy loaded -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+</body>
+
+</html>

@@ -1,0 +1,39 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Quill Gradients (matched to splash) -->
+    <linearGradient id="qBlue" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#bae6fd"/>
+      <stop offset="20%" style="stop-color:#0ea5e9"/>
+      <stop offset="50%" style="stop-color:#0284c7"/>
+      <stop offset="80%" style="stop-color:#0369a1"/>
+      <stop offset="100%" style="stop-color:#0c4a6e"/>
+    </linearGradient>
+    <linearGradient id="qSpine" x1="0%" x2="0%" y1="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#f0f9ff"/>
+      <stop offset="100%" style="stop-color:#7dd3fc"/>
+    </linearGradient>
+    <linearGradient id="qNib" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#e2e8f0"/>
+      <stop offset="50%" style="stop-color:#94a3b8"/>
+      <stop offset="100%" style="stop-color:#475569"/>
+    </linearGradient>
+    
+    <filter id="qShadow" width="150%" height="150%" x="-20%" y="-20%">
+      <feDropShadow dx="-4" dy="12" stdDeviation="15" flood-color="rgba(2,132,199,0.3)"/>
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="rgba(0,0,0,0.15)"/>
+    </filter>
+  </defs>
+
+  <!-- Transparent Background -->
+  <rect width="512" height="512" fill="transparent"/>
+  
+  <!-- Centered Quill, scaled down to fit entirely inside 512x512 -->
+  <g transform="translate(10, 0) rotate(15 256 256) scale(0.95)">
+    <path d="M420 40 C420 40 320 180 260 250 C220 290 180 320 160 380 C150 410 148 430 148 450" fill="url(#qBlue)" filter="url(#qShadow)"/>
+    <path d="M420 40 C440 80 440 160 380 240 C340 290 260 380 148 450" fill="url(#qBlue)" opacity="0.9"/>
+    <path d="M420 40 Q 300 180 148 450" fill="none" stroke="url(#qSpine)" stroke-linecap="round" stroke-width="4.5"/>
+    <g transform="translate(136,430) rotate(-15)">
+      <path d="M12 0 L24 40 L12 50 L0 40 Z" fill="url(#qNib)"/>
+    </g>
+  </g>
+</svg>
