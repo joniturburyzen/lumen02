@@ -1713,6 +1713,153 @@
       filter: drop-shadow(0 2px 8px rgba(59, 130, 246, 0.35));
       animation: homeLogoShimmer 4s linear infinite;
     }
+
+    /* ── DOC CHAT ── */
+    .chat-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 490;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .chat-panel {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 500;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      pointer-events: none;
+    }
+    .chat-backdrop.open { opacity: 1; pointer-events: auto; }
+    .chat-panel.open .chat-sheet { transform: translateY(0); pointer-events: auto; }
+    .chat-sheet {
+      background: var(--paper);
+      border-radius: 20px 20px 0 0;
+      width: 100%;
+      max-width: 640px;
+      max-height: 68vh;
+      display: flex;
+      flex-direction: column;
+      transform: translateY(100%);
+      transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 -6px 40px rgba(0,0,0,0.20);
+    }
+    .chat-handle {
+      width: 36px; height: 4px;
+      background: var(--line);
+      border-radius: 2px;
+      margin: 10px auto 4px;
+      flex-shrink: 0;
+    }
+    .chat-hdr {
+      display: flex;
+      align-items: center;
+      padding: 0.5rem 1rem 0.7rem;
+      border-bottom: 1px solid var(--line);
+      flex-shrink: 0;
+    }
+    .chat-hdr-icon {
+      font-size: 1rem;
+      margin-right: 0.5rem;
+    }
+    .chat-hdr-title {
+      flex: 1;
+      font-family: 'Cinzel', serif;
+      font-size: 0.88rem;
+      color: var(--ink);
+      letter-spacing: 0.04em;
+    }
+    .chat-close-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--ink-light); font-size: 1.1rem;
+      padding: 4px 8px; border-radius: 6px;
+      line-height: 1;
+      transition: color 0.15s, background 0.15s;
+    }
+    .chat-close-btn:hover { color: var(--ink); background: var(--line); }
+    .chat-msgs {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.9rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+    .chat-msg {
+      max-width: 86%;
+      padding: 0.55rem 0.85rem;
+      border-radius: 14px;
+      font-size: 0.88rem;
+      line-height: 1.55;
+      word-break: break-word;
+    }
+    .chat-msg.user {
+      align-self: flex-end;
+      background: var(--mod);
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+    .chat-msg.ai {
+      align-self: flex-start;
+      background: white;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-bottom-left-radius: 4px;
+    }
+    .chat-msg.ai.thinking {
+      color: var(--ink-faint);
+      font-style: italic;
+    }
+    .chat-empty-msg {
+      text-align: center;
+      color: var(--ink-faint);
+      font-style: italic;
+      font-size: 0.83rem;
+      margin: auto;
+      padding: 1.5rem 1rem;
+      line-height: 1.6;
+    }
+    .chat-inp-row {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.7rem 1rem;
+      border-top: 1px solid var(--line);
+      flex-shrink: 0;
+    }
+    .chat-inp {
+      flex: 1;
+      border: 1.5px solid var(--line);
+      border-radius: 999px;
+      padding: 0.55rem 1rem;
+      font-family: 'Lato', sans-serif;
+      font-size: 0.9rem;
+      outline: none;
+      background: white;
+      color: var(--ink);
+      transition: border-color 0.2s;
+    }
+    .chat-inp:focus { border-color: var(--mod); }
+    .chat-send-btn {
+      width: 2.4rem; height: 2.4rem;
+      border-radius: 50%;
+      background: var(--mod);
+      color: white;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.15rem;
+      flex-shrink: 0;
+      transition: opacity 0.15s, transform 0.15s;
+    }
+    .chat-send-btn:hover:not(:disabled) { transform: scale(1.08); }
+    .chat-send-btn:disabled { opacity: 0.45; cursor: not-allowed; }
   </style>
 </head>
 
@@ -2075,7 +2222,7 @@
       </div>
       <div class="pen-sm-wrap bubble-wrap">
         <div class="bubble" id="mb"></div>
-        <div class="pen pen-sm" id="mp" onclick="penClick('mp','mb')">
+        <div class="pen pen-sm" id="mp" onclick="openDocChat()">
           <svg viewBox="0 0 100 100" fill="none">
             <g id="mpb">
               <path id="pc"
@@ -2765,12 +2912,15 @@
           ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(jsonBody) }
           : { method: 'POST', body: fd };
 
+        if (isJson && jsonBody.text) chatDocText = jsonBody.text;
+
         const r = await fetch(API + c.endpoint, fetchOpts);
         clearInterval(pit);
         if (!r.ok) throw new Error('Error del servidor (' + r.status + ')');
         const data = await r.json();
         hideLoad();
         renderRes(data);
+        chatReady();
       } catch (e) {
         clearInterval(pit);
         hideLoad();
@@ -2912,6 +3062,87 @@
       if (navigator.vibrate) navigator.vibrate(25);
     }
 
+    // ── DOC CHAT ──
+    let chatDocText = '';
+    let chatBusy = false;
+
+    function openDocChat() {
+      const pen = document.getElementById('mp');
+      pen.style.transition = 'transform 0.1s';
+      pen.style.transform = 'rotate(-10deg) scale(1.08)';
+      setTimeout(() => { pen.style.transform = ''; }, 350);
+      if (navigator.vibrate) navigator.vibrate(25);
+      document.getElementById('chat-panel').classList.add('open');
+      document.querySelector('.chat-backdrop').classList.add('open');
+      setTimeout(() => {
+        if (chatDocText) document.getElementById('chat-inp').focus();
+      }, 380);
+    }
+
+    function closeChat() {
+      document.getElementById('chat-panel').classList.remove('open');
+      document.querySelector('.chat-backdrop').classList.remove('open');
+    }
+
+    function chatReady() {
+      // Called after a document is processed — update the empty state hint
+      chatDocText = chatDocText; // already set in submit
+      const empty = document.getElementById('chat-empty-msg');
+      if (empty) empty.textContent = '¡Documento listo! Pregúntame lo que quieras sobre él.';
+    }
+
+    async function sendChat() {
+      if (chatBusy) return;
+      const inp = document.getElementById('chat-inp');
+      const q = inp.value.trim();
+      if (!q) return;
+
+      if (!chatDocText) {
+        addChatMsg('ai', 'Primero procesa un documento con alguno de los módulos y luego vuelve aquí.');
+        inp.value = '';
+        return;
+      }
+
+      inp.value = '';
+      addChatMsg('user', q);
+
+      const thinkId = 'ct-' + Date.now();
+      addChatMsg('ai', 'Pensando…', thinkId, true);
+      chatBusy = true;
+      document.getElementById('chat-send-btn').disabled = true;
+
+      try {
+        const r = await fetch(API + '/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: chatDocText, question: q })
+        });
+        if (!r.ok) throw new Error('Error ' + r.status);
+        const data = await r.json();
+        const answer = data.answer || data.respuesta || data.result || data.text || JSON.stringify(data);
+        const el = document.getElementById(thinkId);
+        if (el) { el.textContent = answer; el.classList.remove('thinking'); }
+      } catch (e) {
+        const el = document.getElementById(thinkId);
+        if (el) { el.textContent = 'No se pudo conectar con el servidor. Inténtalo de nuevo.'; el.classList.remove('thinking'); }
+      }
+
+      chatBusy = false;
+      document.getElementById('chat-send-btn').disabled = false;
+    }
+
+    function addChatMsg(role, text, id, thinking) {
+      const msgs = document.getElementById('chat-msgs');
+      const empty = document.getElementById('chat-empty-msg');
+      if (empty) empty.style.display = 'none';
+      const div = document.createElement('div');
+      div.className = 'chat-msg ' + role + (thinking ? ' thinking' : '');
+      if (id) div.id = id;
+      div.textContent = text;
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+
     // ── WORD CANVAS ──
     const WPOOL = {
       default: ['texto', 'palabra', 'frase', 'nota', 'ideas', 'lumen', 'escribe', 'lee', 'piensa', 'entiende', 'claridad', 'boli'],
@@ -2956,6 +3187,27 @@
       tick();
     }
   </script>
+
+  <!-- ── DOC CHAT PANEL ── -->
+  <div class="chat-backdrop" onclick="closeChat()"></div>
+  <div id="chat-panel" class="chat-panel">
+    <div class="chat-sheet">
+      <div class="chat-handle"></div>
+      <div class="chat-hdr">
+        <span class="chat-hdr-icon">✦</span>
+        <div class="chat-hdr-title">Pregunta al documento</div>
+        <button class="chat-close-btn" onclick="closeChat()">✕</button>
+      </div>
+      <div class="chat-msgs" id="chat-msgs">
+        <div class="chat-empty-msg" id="chat-empty-msg">Procesa un documento primero para poder hacer preguntas sobre él.</div>
+      </div>
+      <div class="chat-inp-row">
+        <input class="chat-inp" id="chat-inp" type="text" placeholder="Haz una pregunta sobre el documento…"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}">
+        <button class="chat-send-btn" id="chat-send-btn" onclick="sendChat()" title="Enviar">↑</button>
+      </div>
+    </div>
+  </div>
 
   <!-- html2canvas lazy loaded -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
