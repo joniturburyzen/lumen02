@@ -3,7 +3,7 @@
 // El WASM (1.9MB) y el JS se precargan en install → segunda carga instantánea
 // ────────────────────────────────────────────────────────────────────────────
 
-const CACHE = 'lumen-v3';
+const CACHE = 'lumen-v4';
 
 // Assets críticos que se precargan en el install (bloquea activación hasta que estén)
 const PRECACHE = [
