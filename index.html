@@ -11,7 +11,7 @@
   <meta name="theme-color" content="#2563eb">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/svg+xml" href="icon.svg">
-  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <title>Lumen</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2451,8 +2451,15 @@
     // ── SERVICE WORKER ──
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-          .catch(() => {}); // silencioso si falla (localhost sin HTTPS, etc.)
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+          // Cuando llega una versión nueva del SW, recargar para cargar el código actualizado
+          reg.addEventListener('updatefound', () => {
+            const next = reg.installing;
+            next.addEventListener('statechange', () => {
+              if (next.state === 'activated') window.location.reload();
+            });
+          });
+        }).catch(() => {});
       });
     }
 

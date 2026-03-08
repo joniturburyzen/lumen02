@@ -2,7 +2,7 @@
 // v20 — Siempre carga la última versión, incluso en iOS
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CACHE = "lumen-v20";
+const CACHE = "lumen-v21";
 
 // Archivos mínimos para funcionar offline
 const PRECACHE = [
@@ -52,16 +52,15 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // 2) JS y WASM → stale-while-revalidate (actualiza en segundo plano)
+  // 2) JS y WASM → network-first (siempre intenta la red, fallback a caché)
   if (url.pathname.endsWith(".js") || url.pathname.endsWith(".wasm")) {
     event.respondWith(
-      caches.match(req).then((cached) => {
-        const update = fetch(req).then((res) => {
+      fetch(req)
+        .then((res) => {
           caches.open(CACHE).then((c) => c.put(req, res.clone()));
           return res;
-        });
-        return cached || update;
-      })
+        })
+        .catch(() => caches.match(req))
     );
     return;
   }
