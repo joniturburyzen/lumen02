@@ -1,5 +1,5 @@
 // ─── LUMEN SERVICE WORKER ───────────────────────────────────────────────────
-// v3 — Cache-first para assets estáticos, red para el resto
+// v4 — Cache-first para assets estáticos, red para el resto
 // El WASM (1.9MB) y el JS se precargan en install → segunda carga instantánea
 // ────────────────────────────────────────────────────────────────────────────
 
