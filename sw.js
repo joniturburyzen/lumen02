@@ -1,77 +1,80 @@
-// ─── LUMEN SERVICE WORKER ───────────────────────────────────────────────────
-// v4 — Cache-first para assets estáticos, red para el resto
-// El WASM (1.9MB) y el JS se precargan en install → segunda carga instantánea
-// ────────────────────────────────────────────────────────────────────────────
+// ─── SERVICE WORKER: ACTUALIZACIÓN GARANTIZADA ───────────────────────────────
+// v20 — Siempre carga la última versión, incluso en iOS
+// ─────────────────────────────────────────────────────────────────────────────
 
-const CACHE = 'lumen-v4';
+const CACHE = "lumen-v20";
 
-// Assets críticos que se precargan en el install (bloquea activación hasta que estén)
+// Archivos mínimos para funcionar offline
 const PRECACHE = [
-  './',
-  './index.html',
-  './manifest.json',
-  './icon.svg',
-  './icon-192.png',
-  './icon-512.png',
-  './pkg/lumen_quill.js',
-  './pkg/lumen_quill_bg.wasm',   // ← el más pesado, esencial cachear
+  "./",
+  "./index.html",
+  "./manifest.json",
+  "./icon-192.png",
+  "./icon-512.png",
 ];
 
-// ── INSTALL ──────────────────────────────────────────────────────────────────
-self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE)
-      .then(cache => cache.addAll(PRECACHE))
-      .then(() => self.skipWaiting())   // activa sin esperar a que cierren tabs
+// ── INSTALL ───────────────────────────────────────────────────────────────────
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(CACHE).then((cache) => cache.addAll(PRECACHE))
   );
+  self.skipWaiting(); // activa inmediatamente
 });
 
-// ── ACTIVATE ─────────────────────────────────────────────────────────────────
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(
-        keys
-          .filter(k => k !== CACHE)    // borra caches de versiones anteriores
-          .map(k => caches.delete(k))
-      ))
-      .then(() => self.clients.claim()) // toma control inmediato de todos los tabs
+// ── ACTIVATE ──────────────────────────────────────────────────────────────────
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    )
   );
+  self.clients.claim(); // controla todas las pestañas
 });
 
 // ── FETCH ─────────────────────────────────────────────────────────────────────
-self.addEventListener('fetch', e => {
+self.addEventListener("fetch", (event) => {
+  const req = event.request;
+  const url = new URL(req.url);
+
   // Solo GET
-  if (e.request.method !== 'GET') return;
+  if (req.method !== "GET") return;
 
-  const url = new URL(e.request.url);
+  // 1) HTML SIEMPRE desde la red (network-first)
+  if (req.mode === "navigate") {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          caches.open(CACHE).then((c) => c.put(req, res.clone()));
+          return res;
+        })
+        .catch(() => caches.match("./index.html"))
+    );
+    return;
+  }
 
-  // Ignorar peticiones externas (Google Fonts, APIs, etc.)
-  if (url.origin !== self.location.origin) return;
+  // 2) JS y WASM → stale-while-revalidate (actualiza en segundo plano)
+  if (url.pathname.endsWith(".js") || url.pathname.endsWith(".wasm")) {
+    event.respondWith(
+      caches.match(req).then((cached) => {
+        const update = fetch(req).then((res) => {
+          caches.open(CACHE).then((c) => c.put(req, res.clone()));
+          return res;
+        });
+        return cached || update;
+      })
+    );
+    return;
+  }
 
-  // Ignorar peticiones a la API (/api/...)
-  if (url.pathname.includes('/api/')) return;
-
-  // Estrategia: Cache-first → si no está en caché, red → guarda en caché
-  e.respondWith(
-    caches.match(e.request).then(cached => {
+  // 3) Resto de assets → cache-first
+  event.respondWith(
+    caches.match(req).then((cached) => {
       if (cached) return cached;
 
-      return fetch(e.request).then(response => {
-        // No cachear respuestas erróneas u opacas
-        if (!response || response.status !== 200 || response.type === 'opaque') {
-          return response;
-        }
-
-        // Clonar antes de consumir (los streams solo se leen una vez)
-        const toCache = response.clone();
-        caches.open(CACHE).then(cache => cache.put(e.request, toCache));
-        return response;
-      }).catch(() => {
-        // Offline y no está en caché: devuelve la página principal como fallback
-        if (e.request.destination === 'document') {
-          return caches.match('./index.html');
-        }
+      return fetch(req).then((res) => {
+        if (!res || res.status !== 200) return res;
+        caches.open(CACHE).then((c) => c.put(req, res.clone()));
+        return res;
       });
     })
   );
